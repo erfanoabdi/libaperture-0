@@ -18,30 +18,49 @@
  *      James Westman <james@flyingpimonster.net>
  */
 
-/**
- * A simple example program that prints the amount of available space in the
- * user's Pictures directory, using Aperture's disk_space functions.
- */
-
 
 #include <stdio.h>
 #include <aperture/aperture.h>
 
 
-void callback (GObject *source, GAsyncResult *res, gpointer user_data);
+static void
+callback (ApertureDeviceManager *device_manager, ApertureDevice *device)
+{
+  const gchar *name;
+  GstDevice *gst_device;
+  gchar *class;
+  GstStructure *props;
+
+  name = aperture_device_get_name (device);
+  gst_device = aperture_device_get_device (device);
+  props = gst_device_get_properties (gst_device);
+  class = gst_device_get_device_class (gst_device);
+
+  if (APERTURE_IS_CAMERA (device)) {
+    printf ("Camera: %s (%s)\n", name, class);
+  } else {
+    printf ("Microphone: %s (%s)\n", name, class);
+  }
+
+  aperture_pretty_print_structure (props);
+
+  if (class) g_free (class);
+  if (props) gst_structure_free (props);
+}
 
 int
-main (void)
+main (int argc, char **argv)
 {
   GMainLoop *loop;
-  const gchar *path;
+  ApertureDeviceManager *device_manager;
 
   loop = g_main_loop_new (NULL, TRUE);
+  device_manager = aperture_device_manager_new ();
 
-  path = g_get_user_special_dir (G_USER_DIRECTORY_PICTURES);
-  printf ("Your Pictures directory is at %s\n", path);
+  g_signal_connect (device_manager, "camera-added", G_CALLBACK (callback), NULL);
+  g_signal_connect (device_manager, "microphone-added", G_CALLBACK (callback), NULL);
 
-  aperture_disk_space_get_free_space (path, callback, loop);
+  aperture_device_manager_start (device_manager);
 
   g_main_loop_run (loop);
   g_main_loop_unref (loop);
@@ -49,23 +68,3 @@ main (void)
   return 0;
 }
 
-void
-callback (GObject *_source, GAsyncResult *res, gpointer user_data)
-{
-  GError *error;
-  GMainLoop *loop = user_data;
-  guint64 free_space;
-  gchar *space_str;
-
-  free_space = aperture_disk_space_get_free_space_finish (res, &error);
-
-  if (error) {
-    printf ("%s\n", error->message);
-  } else {
-    space_str = g_format_size (free_space);
-    printf ("%s (%lu bytes) available\n", space_str, free_space);
-    g_free (space_str);
-  }
-
-  g_main_loop_quit (loop);
-}

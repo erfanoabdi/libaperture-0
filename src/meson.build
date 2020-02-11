@@ -4,7 +4,15 @@ aperture_build_dir = meson.current_build_dir()
 libaperture_gir_name = 'Aperture-@0@'.format(aperture_api_version)
 
 libaperture_sources = files(
-  'aperture-disk-space.vala'
+  'aperture.c',
+  'aperture.vala',
+  'aperture-audio-profile.vala',
+  'aperture-camera.vala',
+  'aperture-device.vala',
+  'aperture-device-manager.vala',
+  'aperture-disk-space.vala',
+  'aperture-microphone.vala',
+  'aperture-video-profile.vala',
 )
 
 libaperture_vala_flags = [

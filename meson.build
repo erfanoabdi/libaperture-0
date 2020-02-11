@@ -17,6 +17,7 @@ g_ir_compiler = find_program('g-ir-compiler')
 gio_dep      = dependency('gio-2.0')
 glib_dep     = dependency('glib-2.0')
 gee_dep      = dependency('gee-0.8')
+gdk_dep      = dependency('gdk-3.0')
 gtk_dep      = dependency('gtk+-3.0')
 gst_dep      = dependency('gstreamer-1.0')
 
@@ -25,6 +26,7 @@ libaperture_deps = [
   glib_dep,
   gio_dep,
   gee_dep,
+  gdk_dep,
   gtk_dep,
   gst_dep,
 ]
