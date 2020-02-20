@@ -39,7 +39,7 @@ public abstract class Aperture.Device : Object {
     }
 
 
-    public Gst.Element create_gstreamer_source(string? name) {
+    public Gst.Element create_gstreamer_source(string? name=null) {
         return this.device.create_element(name);
     }
 }

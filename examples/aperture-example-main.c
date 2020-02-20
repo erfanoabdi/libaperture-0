@@ -23,47 +23,47 @@
 #include <aperture/aperture.h>
 
 
-static void
-callback (ApertureDeviceManager *device_manager, ApertureDevice *device)
+void
+on_camera_changed (ApertureCameraSwitcherButton *switcher,
+                   ApertureCamera *camera,
+                   gpointer user_data)
 {
-  const gchar *name;
-  GstDevice *gst_device;
-  gchar *class;
-  GstStructure *props;
+  ApertureWidget *widget = user_data;
 
-  name = aperture_device_get_name (device);
-  gst_device = aperture_device_get_device (device);
-  props = gst_device_get_properties (gst_device);
-  class = gst_device_get_device_class (gst_device);
-
-  if (APERTURE_IS_CAMERA (device)) {
-    printf ("Camera: %s (%s)\n", name, class);
-  } else {
-    printf ("Microphone: %s (%s)\n", name, class);
-  }
-
-  aperture_pretty_print_structure (props);
-
-  if (class) g_free (class);
-  if (props) gst_structure_free (props);
+  aperture_widget_set_camera (widget, camera);
 }
 
 int
 main (int argc, char **argv)
 {
-  GMainLoop *loop;
-  ApertureDeviceManager *device_manager;
+  GtkWidget *window;
+  ApertureWidget *widget;
+  ApertureCameraSwitcherButton *switcher;
+  GtkWidget *grid;
 
-  loop = g_main_loop_new (NULL, TRUE);
-  device_manager = aperture_device_manager_new ();
+  // Aperture does not work on Wayland yet
+  g_setenv ("GDK_BACKEND", "x11", TRUE);
 
-  g_signal_connect (device_manager, "camera-added", G_CALLBACK (callback), NULL);
-  g_signal_connect (device_manager, "microphone-added", G_CALLBACK (callback), NULL);
+  gtk_init (&argc, &argv);
 
-  aperture_device_manager_start (device_manager);
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  grid = gtk_grid_new ();
+  switcher = aperture_camera_switcher_button_new ();
+  gtk_widget_set_sensitive (GTK_WIDGET (switcher), TRUE);
+  widget = aperture_widget_new ();
 
-  g_main_loop_run (loop);
-  g_main_loop_unref (loop);
+  gtk_widget_set_size_request (GTK_WIDGET (widget), 200, 200);
+
+  g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), widget);
+  g_signal_connect (window, "destroy", gtk_main_quit, NULL);
+
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 2, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 1, 1, 1, 1);
+  gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (grid));
+
+  gtk_widget_show_all (window);
+
+  gtk_main ();
 
   return 0;
 }

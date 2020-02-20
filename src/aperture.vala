@@ -23,6 +23,16 @@ namespace Aperture {
     private extern void init();
 
 
+    [CCode (cname="aperture_get_window_handle")]
+    private extern void* get_window_handle(Gdk.Window window);
+
+    [CCode (cname="aperture_is_wayland_display")]
+    private extern bool is_wayland_display();
+
+    [CCode (cname="aperture_create_wayland_context")]
+    private extern Gst.Context create_wayland_context();
+
+
     public void pretty_print_structure(Gst.Structure structure) {
         print("%s\n", structure.get_name());
 

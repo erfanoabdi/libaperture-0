@@ -8,11 +8,13 @@ libaperture_sources = files(
   'aperture.vala',
   'aperture-audio-profile.vala',
   'aperture-camera.vala',
+  'aperture-camera-switcher-button.vala',
   'aperture-device.vala',
   'aperture-device-manager.vala',
   'aperture-disk-space.vala',
   'aperture-microphone.vala',
   'aperture-video-profile.vala',
+  'aperture-widget.vala',
 )
 
 libaperture_vala_flags = [

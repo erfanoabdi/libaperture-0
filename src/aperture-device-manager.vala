@@ -19,6 +19,15 @@
  */
 
 public class Aperture.DeviceManager : Object {
+    private static DeviceManager _instance;
+    public static DeviceManager get_instance() {
+        if (_instance == null) {
+            _instance = new DeviceManager();
+        }
+        return _instance;
+    }
+
+
     /**
      * Emitted when a new camera is discovered.
      */
@@ -40,12 +49,13 @@ public class Aperture.DeviceManager : Object {
     public signal void microphone_removed(Microphone microphone);
 
 
-    private Gst.DeviceMonitor _monitor;
-
     public List<Microphone> microphones = new List<Microphone>();
 
     public List<Camera> cameras = new List<Camera>();
 
+
+    private Gst.DeviceMonitor _monitor;
+    private bool _started = false;
 
     construct {
         init();
@@ -54,13 +64,21 @@ public class Aperture.DeviceManager : Object {
         this._monitor.get_bus().add_watch(Priority.DEFAULT, this._on_bus_message);
     }
 
+    private DeviceManager() {}
+
 
     public void start() {
+        if (_started) {
+            return;
+        }
+
         this._monitor.start();
 
         foreach (var device in this._monitor.get_devices()) {
             this._add_device(device);
         }
+
+        _started = true;
     }
 
 
