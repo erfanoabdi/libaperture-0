@@ -48,21 +48,19 @@ public class Aperture.Widget : Gtk.Grid {
      */
     public signal void picture_taken(Gdk.Pixbuf pixbuf);
 
-    /**
-     * Emitted when a snapshot is taken by the user or by calling
-     * take_snapshot().
-     */
-    public signal void snapshot_taken(Gdk.Pixbuf pixbuf);
-
 
     // GTK WIDGETS
     private Gtk.DrawingArea _viewfinder;
 
     // GST ELEMENTS
-    private Gst.Pipeline _pipeline;
+    private Gst.Pipeline pipeline;
     private Gst.Element _source;
     private Gst.Element _sink;
     private Gst.Element _convert1;
+    private Gst.Element tee;
+
+    private delegate void BusCallback(Gst.Message msg);
+    private BusCallback finish_taking_picture;
 
 
     construct {
@@ -77,21 +75,23 @@ public class Aperture.Widget : Gtk.Grid {
         this.attach(this._viewfinder, 0, 0);
 
         // Create pipeline and set up message handlers
-        _pipeline = new Gst.Pipeline(null);
-        _pipeline.get_bus().set_sync_handler(_on_bus_message_sync);
-        _pipeline.get_bus().add_watch(Priority.DEFAULT, _on_bus_message_async);
+        pipeline = new Gst.Pipeline(null);
+        pipeline.get_bus().set_sync_handler(_on_bus_message_sync);
+        pipeline.get_bus().add_watch(Priority.DEFAULT, _on_bus_message_async);
 
         // Create and connect all the elements
-        _convert1 = _create_element("videoconvert");
+        _convert1 = create_element("videoconvert");
+        this.tee = create_element("tee");
+        Gst.Element q1 = create_element("queue");
 
         if (is_wayland_display()) {
-            _sink = _create_element("waylandsink");
+            _sink = create_element("waylandsink");
         } else {
-            _sink = _create_element("xvimagesink");
+            _sink = create_element("xvimagesink");
         }
 
-        _pipeline.add_many(_convert1, _sink);
-        _convert1.link_many(_sink);
+        pipeline.add_many(_convert1, _sink, this.tee, q1);
+        _convert1.link_many(this.tee, q1, _sink);
 
         // Pick a camera
         var devices = DeviceManager.get_instance();
@@ -109,13 +109,82 @@ public class Aperture.Widget : Gtk.Grid {
     ~Widget() {
         // Make sure the pipeline is in NULL state before it is finalized!
         if (_source != null) {
-            _pipeline.set_state(NULL);
+            pipeline.set_state(NULL);
         }
     }
 
 
+    /**
+     * Takes a picture.
+     *
+     * This may take a while. The resolution might be changed temporarily,
+     * autofocusing might take place, etc. Basically everything you'd expect
+     * to happen when you click the photo button on the camera app.
+     *
+     * When the picture has been taken, the `picture_taken` signal will be
+     * emitted with the picture.
+     */
+    public void take_picture() {
+        this.state = TAKING_PICTURE;
+
+        Gst.Element q = create_element("queue");
+        Gst.Element convert = create_element("videoconvert");
+        dynamic Gst.Element pixbufsink = create_element("gdkpixbufsink");
+
+        // Not quite sure why this is needed, but if it's not there, you'll
+        // get errors when the elements are finalized, saying they're not
+        // in the NULL state (even though they were just set to NULL).
+        pixbufsink.set_locked_state(true);
+        convert.set_locked_state(true);
+        q.set_locked_state(true);
+
+        // Connect the elements
+        this.pipeline.add_many(q, convert, pixbufsink);
+        q.link_many(convert, pixbufsink);
+
+        Gst.Pad tee_src = this.tee.get_request_pad("src_%u");
+        Gst.Pad q_sink = q.get_static_pad("sink");
+        tee_src.link(q_sink);
+
+        this.finish_taking_picture = (msg) => {
+            if (msg.src != pixbufsink) {
+                return;
+            }
+
+            if (msg.type != ELEMENT) {
+                return;
+            }
+
+            unowned Gst.Structure structure = msg.get_structure();
+            Gdk.Pixbuf pixbuf = (Gdk.Pixbuf) structure.get_value("pixbuf");
+            this.picture_taken(pixbuf);
+
+            this.state = READY;
+
+            q.set_state(NULL);
+            convert.set_state(NULL);
+            pixbufsink.set_state(NULL);
+
+            Gst.Debug.bin_to_dot_file(this.pipeline, ALL, "aperture1");
+
+            pipeline.remove(q);
+            pipeline.remove(convert);
+            pipeline.remove(pixbufsink);
+
+            this.tee.release_request_pad(tee_src);
+
+            this.finish_taking_picture = null;
+        };
+
+        // Set the elements to playing
+        q.sync_state_with_parent();
+        convert.sync_state_with_parent();
+        pixbufsink.set_state(PLAYING);
+    }
+
+
     private void _on_realize() {
-        _pipeline.set_state(PLAYING);
+        pipeline.set_state(PLAYING);
     }
 
     private void _set_camera(Camera new_device) {
@@ -126,18 +195,18 @@ public class Aperture.Widget : Gtk.Grid {
             // Must set a different clock. Otherwise, when the old source
             // is destroyed, its clock will freeze, freezing the pipeline
             // with it
-            _pipeline.set_clock(Gst.SystemClock.obtain());
+            pipeline.set_clock(Gst.SystemClock.obtain());
             old_source.set_state(NULL);
-            _pipeline.remove(old_source);
+            pipeline.remove(old_source);
         }
 
         _source = new_source;
-        _pipeline.add(_source);
+        pipeline.add(_source);
         _source.link(_convert1);
         _source.sync_state_with_parent();
 
         if (_viewfinder.get_realized()) {
-            _pipeline.set_state(PLAYING);
+            pipeline.set_state(PLAYING);
         }
 
         this.state = READY;
@@ -170,7 +239,11 @@ public class Aperture.Widget : Gtk.Grid {
             msg.parse_error(out err, out debug_info);
             stderr.printf("Error received from element %s: %s\n", msg.src.name, err.message);
             stderr.printf("Debugging information: %s\n", (debug_info != null) ? debug_info : "none");
-            break;
+            return true;
+        }
+
+        if (this.finish_taking_picture != null) {
+            this.finish_taking_picture(msg);
         }
 
         return true;
@@ -190,7 +263,7 @@ public class Aperture.Widget : Gtk.Grid {
     }
 
     private bool _on_draw(Cairo.Context ctx) {
-        if (_pipeline.current_state == PAUSED || _pipeline.current_state == PLAYING) {
+        if (pipeline.current_state == PAUSED || pipeline.current_state == PLAYING) {
             return false;
         }
 
@@ -208,7 +281,7 @@ public class Aperture.Widget : Gtk.Grid {
         this.state = ERROR;
     }
 
-    private Gst.Element? _create_element(string factory) {
+    private Gst.Element? create_element(string factory) {
         var element = Gst.ElementFactory.make(factory, null);
         if (element == null) {
             _set_error("Failed to create element %s".printf(factory));
@@ -236,6 +309,11 @@ public enum Aperture.State {
      * The #ApertureWidget is recording a video.
      */
     RECORDING,
+
+    /**
+     * The #ApertureWidget is taking a picture.
+     */
+    TAKING_PICTURE,
 
     /**
      * The #ApertureWidget could not find any cameras to use.
