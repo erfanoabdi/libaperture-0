@@ -20,11 +20,14 @@
 
 namespace Aperture {
     [CCode (cname="aperture_init")]
-    private extern void init();
+    public extern void init();
 
 
     [CCode (cname="aperture_get_window_handle")]
     private extern void* get_window_handle(Gdk.Window window);
+
+    [CCode]
+    private extern void* get_wayland_display_handle();
 
     [CCode (cname="aperture_is_wayland_display")]
     private extern bool is_wayland_display();

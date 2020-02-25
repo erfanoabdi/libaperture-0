@@ -72,6 +72,7 @@ public class Aperture.Widget : Gtk.Grid {
         _viewfinder.realize.connect(this._on_realize);
         _viewfinder.draw.connect(this._on_draw);
         _viewfinder.expand = true;
+        _viewfinder.visible = true;
         this.attach(this._viewfinder, 0, 0);
 
         // Create pipeline and set up message handlers
@@ -182,6 +183,10 @@ public class Aperture.Widget : Gtk.Grid {
         pixbufsink.set_state(PLAYING);
     }
 
+    public void debug_dump(string name="aperture-widget") {
+        Gst.Debug.bin_to_dot_file(this.pipeline, ALL, name);
+    }
+
 
     private void _on_realize() {
         pipeline.set_state(PLAYING);
@@ -213,15 +218,26 @@ public class Aperture.Widget : Gtk.Grid {
     }
 
     private Gst.BusSyncReply _on_bus_message_sync(Gst.Bus bus, Gst.Message msg) {
+        if (msg.type == NEED_CONTEXT) {
+            string context_type;
+            msg.parse_context_type(out context_type);
+            if (context_type == "GstWaylandDisplayHandleContextType") {
+                if (is_wayland_display()) {
+                    _sink.set_context(create_wayland_context());
+                }
+            }
+        }
+
         if (Gst.Video.is_video_overlay_prepare_window_handle_message(msg)) {
             var window = _viewfinder.get_window();
             var handle = get_window_handle(window);
 
-            if (is_wayland_display()) {
-                _sink.set_context(create_wayland_context());
-            }
-
             ((Gst.Video.Overlay) _sink).set_window_handle(handle);
+            Gtk.Allocation alloc;
+            _viewfinder.get_allocated_size(out alloc, null);
+            ((Gst.Video.Overlay) _sink).set_render_rectangle(
+                alloc.x, alloc.y, alloc.width, alloc.height
+            );
 
             msg.unref();
             return DROP;

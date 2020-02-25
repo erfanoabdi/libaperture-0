@@ -89,7 +89,7 @@ aperture_is_wayland_display ()
   #endif
 }
 
-static gpointer
+gpointer
 aperture_get_wayland_display_handle ()
 {
   #if defined (GDK_WINDOWING_WAYLAND)
@@ -108,6 +108,17 @@ aperture_get_wayland_display_handle ()
   return NULL;
 }
 
+#define GST_WAYLAND_DISPLAY_HANDLE_CONTEXT_TYPE "GstWaylandDisplayHandleContextType"
+GstContext *
+gst_wayland_display_handle_context_new (struct wl_display * display)
+{
+  GstContext *context =
+      gst_context_new (GST_WAYLAND_DISPLAY_HANDLE_CONTEXT_TYPE, TRUE);
+  gst_structure_set (gst_context_writable_structure (context),
+      "handle", G_TYPE_POINTER, display, NULL);
+  return context;
+}
+
 /**
  * Creates a GstContext with the current Wayland display handle.
  */
@@ -118,10 +129,11 @@ aperture_create_wayland_context ()
   GstStructure *structure;
   gpointer handle;
 
-  result = gst_context_new ("GstWaylandDisplayHandleContextType", TRUE);
+  /*result = gst_context_new ("GstWaylandDisplayHandleContextType", TRUE);
   structure = gst_context_writable_structure (result);
   handle = aperture_get_wayland_display_handle ();
-  gst_structure_set (structure, "handle", G_TYPE_POINTER, handle, NULL);
+  gst_structure_set (structure, "handle", G_TYPE_POINTER, handle, NULL);*/
+  return gst_wayland_display_handle_context_new (aperture_get_wayland_display_handle ());
 
   return result;
 }

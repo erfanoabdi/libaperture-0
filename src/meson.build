@@ -2,6 +2,7 @@ aperture_build_dir = meson.current_build_dir()
 
 # Core library
 libaperture_gir_name = 'Aperture-@0@'.format(aperture_api_version)
+libaperture_pc_name = 'aperture-@0@'.format(aperture_api_version)
 
 libaperture_sources = files(
   'aperture.c',
@@ -27,16 +28,22 @@ libaperture_c_flags = [
 
 libaperture_header_install_dir = get_option('includedir') / 'aperture'
 
-libaperture_lib = shared_library('aperture', libaperture_sources,
+libaperture_lib = shared_library(libaperture_pc_name, libaperture_sources,
   dependencies: [ libaperture_deps ],
   vala_args: libaperture_vala_flags,
   c_args: libaperture_c_flags,
   version: aperture_api_version,
   vala_header: 'aperture/aperture.h',
-  vala_vapi: 'aperture-@0@.vapi'.format(aperture_api_version),
+  vala_vapi: libaperture_pc_name + '.vapi',
   vala_gir: libaperture_gir_name + '.gir',
   install: true,
   install_dir: [true, libaperture_header_install_dir, true, true],
+)
+
+# Also install vala deps file
+install_data('aperture.deps',
+  rename: libaperture_pc_name + '.deps',
+  install_dir: get_option('datadir') / 'vala' / 'vapi',
 )
 
 
@@ -56,7 +63,7 @@ libaperture_gir_include_dir = meson.current_build_dir()
 pkgconfig.generate(libaperture_lib,
   name: 'Aperture',
   description: 'The Aperture camera widget library for GTK',
-  filebase: 'aperture',
+  filebase: libaperture_pc_name,
   requires: libaperture_deps,
 )
 

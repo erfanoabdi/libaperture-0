@@ -83,7 +83,7 @@ main (int argc, char **argv)
   const gchar *desktop;
 
   // Aperture does not work on Wayland yet
-  g_setenv ("GDK_BACKEND", "x11", TRUE);
+  //g_setenv ("GDK_BACKEND", "x11", TRUE);
 
   desktop = g_get_user_special_dir (G_USER_DIRECTORY_DESKTOP);
   g_setenv ("GST_DEBUG_DUMP_DOT_DIR", desktop, TRUE);
