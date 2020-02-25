@@ -54,7 +54,7 @@ libaperture_gir_include_dir = meson.current_build_dir()
 
 # Pkg-config file
 pkgconfig.generate(libaperture_lib,
-  name: 'aperture',
+  name: 'Aperture',
   description: 'The Aperture camera widget library for GTK',
   filebase: 'aperture',
   requires: libaperture_deps,
