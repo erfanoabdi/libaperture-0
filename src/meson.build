@@ -13,6 +13,7 @@ libaperture_sources = files(
   'aperture-device.vala',
   'aperture-device-manager.vala',
   'aperture-disk-space.vala',
+  'aperture-double-buffer.vala',
   'aperture-microphone.vala',
   'aperture-video-profile.vala',
   'aperture-widget.vala',

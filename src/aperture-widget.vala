@@ -55,9 +55,11 @@ public class Aperture.Widget : Gtk.Grid {
     // GST ELEMENTS
     private Gst.Pipeline pipeline;
     private Gst.Element _source;
-    private Gst.Element _sink;
     private Gst.Element _convert1;
     private Gst.Element tee;
+    private dynamic Gst.Element capsfilter;
+    private Gst.App.Sink sink;
+    private DoubleBuffer buffer;
 
     private delegate void BusCallback(Gst.Message msg);
     private BusCallback finish_taking_picture;
@@ -65,34 +67,44 @@ public class Aperture.Widget : Gtk.Grid {
 
     construct {
         // Make sure Aperture is initialized
-        init();
+        init_check();
 
         // Build the widget
         _viewfinder = new Gtk.DrawingArea();
-        _viewfinder.realize.connect(this._on_realize);
-        _viewfinder.draw.connect(this._on_draw);
+        _viewfinder.draw.connect(this.on_draw);
+        _viewfinder.configure_event.connect(this.on_configure_event);
         _viewfinder.expand = true;
         _viewfinder.visible = true;
         this.attach(this._viewfinder, 0, 0);
 
         // Create pipeline and set up message handlers
         pipeline = new Gst.Pipeline(null);
-        pipeline.get_bus().set_sync_handler(_on_bus_message_sync);
         pipeline.get_bus().add_watch(Priority.DEFAULT, _on_bus_message_async);
+
+        buffer = new DoubleBuffer(1, 1);
 
         // Create and connect all the elements
         _convert1 = create_element("videoconvert");
         this.tee = create_element("tee");
         Gst.Element q1 = create_element("queue");
+        dynamic Gst.Element capsfilter1 = create_element("capsfilter");
+        dynamic Gst.Element videoscale = create_element("videoscale");
+        this.capsfilter = create_element("capsfilter");
+        this.sink = (Gst.App.Sink) create_element("appsink");
 
-        if (is_wayland_display()) {
-            _sink = create_element("waylandsink");
-        } else {
-            _sink = create_element("xvimagesink");
-        }
+        this.capsfilter.caps = new Gst.Caps.simple("video/x-raw",
+            "format", typeof(string), BYTE_ORDER == LITTLE_ENDIAN ? "BGRA" : "RGBA",
+            "pixel-aspect-ratio", typeof(Gst.Fraction), 1, 1
+        );
+        capsfilter1.caps = new Gst.Caps.simple("video/x-raw",
+            "pixel-aspect-ratio", typeof(Gst.Fraction), 1, 1
+        );
+        videoscale.add_borders = true;
+        this.sink.new_sample.connect(this.on_new_sample);
+        this.sink.emit_signals = true;
 
-        pipeline.add_many(_convert1, _sink, this.tee, q1);
-        _convert1.link_many(this.tee, q1, _sink);
+        pipeline.add_many(_convert1, this.tee, q1, capsfilter1, videoscale, capsfilter, sink);
+        _convert1.link_many(this.tee, q1, capsfilter1, videoscale, capsfilter, sink);
 
         // Pick a camera
         var devices = DeviceManager.get_instance();
@@ -105,6 +117,8 @@ public class Aperture.Widget : Gtk.Grid {
         } else {
             state = NO_CAMERAS;
         }
+
+        pipeline.set_state(PLAYING);
     }
 
     ~Widget() {
@@ -188,10 +202,6 @@ public class Aperture.Widget : Gtk.Grid {
     }
 
 
-    private void _on_realize() {
-        pipeline.set_state(PLAYING);
-    }
-
     private void _set_camera(Camera new_device) {
         var old_source = _source;
         var new_source = new_device.create_gstreamer_source();
@@ -217,34 +227,21 @@ public class Aperture.Widget : Gtk.Grid {
         this.state = READY;
     }
 
-    private Gst.BusSyncReply _on_bus_message_sync(Gst.Bus bus, Gst.Message msg) {
-        if (msg.type == NEED_CONTEXT) {
-            string context_type;
-            msg.parse_context_type(out context_type);
-            if (context_type == "GstWaylandDisplayHandleContextType") {
-                if (is_wayland_display()) {
-                    _sink.set_context(create_wayland_context());
-                }
-            }
-        }
 
-        if (Gst.Video.is_video_overlay_prepare_window_handle_message(msg)) {
-            var window = _viewfinder.get_window();
-            var handle = get_window_handle(window);
+    private bool on_configure_event() {
+        Gtk.Allocation alloc;
+        this._viewfinder.get_allocation(out alloc);
 
-            ((Gst.Video.Overlay) _sink).set_window_handle(handle);
-            Gtk.Allocation alloc;
-            _viewfinder.get_allocated_size(out alloc, null);
-            ((Gst.Video.Overlay) _sink).set_render_rectangle(
-                alloc.x, alloc.y, alloc.width, alloc.height
-            );
+        this.capsfilter.caps = new Gst.Caps.simple("video/x-raw",
+            "format", typeof(string), BYTE_ORDER == LITTLE_ENDIAN ? "BGRA" : "RGBA",
+            "width", typeof(int), alloc.width,
+            "height", typeof(int), alloc.height,
+            "pixel-aspect-ratio", typeof(Gst.Fraction), 1, 1
+        );
 
-            msg.unref();
-            return DROP;
-        }
-
-        return PASS;
+        return false;
     }
+
 
     private bool _on_bus_message_async(Gst.Bus bus, Gst.Message msg) {
         switch (msg.type) {
@@ -255,6 +252,9 @@ public class Aperture.Widget : Gtk.Grid {
             msg.parse_error(out err, out debug_info);
             stderr.printf("Error received from element %s: %s\n", msg.src.name, err.message);
             stderr.printf("Debugging information: %s\n", (debug_info != null) ? debug_info : "none");
+
+            debug_dump("libaperture-error");
+
             return true;
         }
 
@@ -278,19 +278,46 @@ public class Aperture.Widget : Gtk.Grid {
         }
     }
 
-    private bool _on_draw(Cairo.Context ctx) {
-        if (pipeline.current_state == PAUSED || pipeline.current_state == PLAYING) {
-            return false;
-        }
 
+    private bool on_draw(Cairo.Context ctx) {
+        // Clear background
         Gtk.Allocation alloc;
         _viewfinder.get_allocation(out alloc);
         ctx.set_source_rgb(0, 0, 0);
         ctx.rectangle(0, 0, alloc.width, alloc.height);
         ctx.fill();
 
+        // Draw latest buffer
+        this.buffer.with_front((front) => {
+            ctx.set_source_surface(front, 0, 0);
+            ctx.paint();
+        });
+
         return false;
     }
+
+
+    private Gst.FlowReturn on_new_sample(Gst.App.Sink sink) {
+        Gst.Sample sample = this.sink.pull_sample();
+        if (sample == null) return Gst.FlowReturn.EOS;
+
+        unowned Gst.Structure s = sample.get_caps().get_structure(0);
+        int width, height;
+        s.get_int("width", out width);
+        s.get_int("height", out height);
+        this.buffer.resize(width, height);
+
+        Gst.Buffer buf = sample.get_buffer();
+        this.buffer.with_back((back) => {
+            copy_buffer_to_surface(buf, back);
+        });
+        this.buffer.swap();
+
+        this._viewfinder.queue_draw();
+
+        return Gst.FlowReturn.OK;
+    }
+
 
     private void _set_error(string message) {
         critical(message);

@@ -19,22 +19,18 @@
  */
 
 namespace Aperture {
-    [CCode (cname="aperture_init")]
-    public extern void init();
-
-
-    [CCode (cname="aperture_get_window_handle")]
-    private extern void* get_window_handle(Gdk.Window window);
-
     [CCode]
-    private extern void* get_wayland_display_handle();
+    private extern void copy_buffer_to_surface(Gst.Buffer buffer, Cairo.ImageSurface surf);
 
-    [CCode (cname="aperture_is_wayland_display")]
-    private extern bool is_wayland_display();
 
-    [CCode (cname="aperture_create_wayland_context")]
-    private extern Gst.Context create_wayland_context();
-
+    /**
+     * Emits an error if GStreamer is not initialized.
+     */
+    public void init_check() {
+        if (!Gst.is_initialized()) {
+            critical("GStreamer is not initialized! Please call gst_init() before using libaperture.");
+        }
+    }
 
     public void pretty_print_structure(Gst.Structure structure) {
         print("%s\n", structure.get_name());
@@ -99,5 +95,63 @@ namespace Aperture {
                 return "%d-%d %% %d".printf(min, max, step);
             }
         }
+    }
+
+
+    /**
+     * Scales the rectangle (w, h) up or down to fit perfectly in (tw, th).
+     */
+    public void scale_to_fit(ref double w, ref double h,
+                             double tw, double th) {
+        double ratio = w / h;
+        double t_ratio = tw / th;
+        if (t_ratio < ratio) {
+            w = tw;
+            h = tw * (1 / ratio);
+        } else {
+            w = th * ratio;
+            h = th;
+        }
+    }
+
+    /**
+     * Scales the rectangle (w, h) to completely fill (tw, th).
+     */
+    public void scale_to_fill(ref double w, ref double h,
+                              double tw, double th) {
+        double ratio = w / h;
+        double t_ratio = tw / th;
+        if (t_ratio > ratio) {
+            w = tw;
+            h = tw * (1 / ratio);
+        } else {
+            w = th * ratio;
+            h = th;
+        }
+    }
+
+    /**
+     * Same as scale_to_fit(), but does not make the rectangle bigger; if the
+     * first rectangle is smaller than the second, no change will be made.
+     */
+    public void shrink_to_fit(ref double w, ref double h,
+                              double tw, double th) {
+        double nw = w, nh = h;
+        scale_to_fit(ref nw, ref nh, tw, th);
+        if (nw < w) {
+            w = nw;
+            h = nh;
+        }
+    }
+
+    /**
+     * Finds the amount to translate the first rectangle so that it is centered
+     * on the second.
+     */
+    public void center(double w, double h,
+                       double tw, double th,
+                       out double out_x, out double out_y) {
+        out_x = tw / 2 - w / 2;
+        out_y = th / 2 - h / 2;
     }
 }

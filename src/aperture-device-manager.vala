@@ -58,7 +58,7 @@ public class Aperture.DeviceManager : Object {
     private bool _started = false;
 
     construct {
-        init();
+        init_check();
 
         this._monitor = new Gst.DeviceMonitor();
         this._monitor.get_bus().add_watch(Priority.DEFAULT, this._on_bus_message);

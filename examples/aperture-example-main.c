@@ -80,14 +80,13 @@ main (int argc, char **argv)
   ApertureCameraSwitcherButton *switcher;
   GtkWidget *grid;
   GtkWidget *button;
+  GtkWidget *headerbar;
   const gchar *desktop;
-
-  // Aperture does not work on Wayland yet
-  //g_setenv ("GDK_BACKEND", "x11", TRUE);
 
   desktop = g_get_user_special_dir (G_USER_DIRECTORY_DESKTOP);
   g_setenv ("GST_DEBUG_DUMP_DOT_DIR", desktop, TRUE);
 
+  gst_init (&argc, &argv);
   gtk_init (&argc, &argv);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -108,6 +107,11 @@ main (int argc, char **argv)
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button), 0, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 1, 1, 1, 1);
   gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (grid));
+
+  headerbar = gtk_header_bar_new ();
+  gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (headerbar), TRUE);
+  gtk_header_bar_set_title (GTK_HEADER_BAR (headerbar), "libaperture demo");
+  gtk_window_set_titlebar (GTK_WINDOW (window), headerbar);
 
   gtk_widget_show_all (window);
 
