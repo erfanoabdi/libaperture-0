@@ -313,7 +313,10 @@ public class Aperture.Widget : Gtk.Grid {
         });
         this.buffer.swap();
 
-        this._viewfinder.queue_draw();
+        Idle.add(() => {
+            this._viewfinder.queue_draw();
+            return Source.REMOVE;
+        });
 
         return Gst.FlowReturn.OK;
     }
