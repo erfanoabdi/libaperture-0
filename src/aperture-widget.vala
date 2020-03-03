@@ -172,7 +172,6 @@ public class Aperture.Widget : Gtk.Grid {
 
             unowned Gst.Structure structure = msg.get_structure();
             Gdk.Pixbuf pixbuf = (Gdk.Pixbuf) structure.get_value("pixbuf");
-            this.picture_taken(pixbuf);
 
             this.state = READY;
 
@@ -189,6 +188,11 @@ public class Aperture.Widget : Gtk.Grid {
             this.tee.release_request_pad(tee_src);
 
             this.finish_taking_picture = null;
+
+            Idle.add(() => {
+                this.picture_taken(pixbuf);
+                return Source.REMOVE;
+            });
         };
 
         // Set the elements to playing
