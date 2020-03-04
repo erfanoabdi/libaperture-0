@@ -26,10 +26,18 @@ internal class Aperture.Tween {
         double to;
 
         public bool is_active(int64 time) {
+            if (duration == 0) {
+                return false;
+            }
+
             return time >= start && time <= start + duration;
         }
 
         public double get_val(int64 time) {
+            if (duration == 0) {
+                return to;
+            }
+
             double percent = (time - start) / (double) duration;
             percent = percent.clamp(0, 1);
             double diff = to - from;

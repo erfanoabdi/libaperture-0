@@ -41,8 +41,9 @@ on_take_picture (GtkButton      *button,
 }
 
 void
-on_picture_taken (ApertureWidget *widget,
-                  GdkPixbuf      *pixbuf)
+on_picture_taken (ApertureWidget  *widget,
+                  GdkPixbuf       *pixbuf,
+                  ApertureGallery *gallery)
 {
   GError *error = NULL;
   const gchar *pictures;
@@ -61,7 +62,8 @@ on_picture_taken (ApertureWidget *widget,
     path = g_strdup_printf ("%s/%s_%d.jpg", pictures, filename, i);
   }
 
-  gdk_pixbuf_save (pixbuf, path, "jpeg", &error, "quality", "100", NULL);
+  //gdk_pixbuf_save (pixbuf, path, "jpeg", &error, "quality", "100", NULL);
+  aperture_gallery_add_image (gallery, pixbuf);
 
   if (error) {
     g_error_free (error);
@@ -90,6 +92,8 @@ main (int argc, char **argv)
   ApertureCameraSwitcherButton *switcher;
   GtkWidget *grid;
   ApertureShutterButton *button;
+  ApertureGallery *gallery;
+  ApertureGalleryButton *gallery_button;
   GtkWidget *button2;
   GtkWidget *headerbar;
   const gchar *desktop;
@@ -106,23 +110,32 @@ main (int argc, char **argv)
   gtk_widget_set_sensitive (GTK_WIDGET (switcher), TRUE);
   button = aperture_shutter_button_new ();
   button2 = gtk_button_new_with_label ("Test");
+  gallery = aperture_gallery_new ();
+  gallery_button = aperture_gallery_button_new ();
   widget = aperture_widget_new ();
 
   gtk_widget_set_size_request (GTK_WIDGET (widget), 200, 200);
   gtk_widget_set_size_request (GTK_WIDGET (button), 68, 68);
+  gtk_widget_set_size_request (GTK_WIDGET (gallery_button), 56, 56);
   aperture_shutter_button_set_mode (button, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+  aperture_gallery_button_set_gallery (gallery_button, gallery);
+  gtk_widget_set_halign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
+  gtk_widget_set_valign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
   g_object_set (button, "margin", 12, NULL);
 
   g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), widget);
   g_signal_connect (button, "clicked", G_CALLBACK (on_take_picture), widget);
-  g_signal_connect (widget, "picture-taken", G_CALLBACK (on_picture_taken), widget);
+  g_signal_connect (widget, "picture-taken", G_CALLBACK (on_picture_taken), gallery);
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
   g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), button);
 
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 3, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 4, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button), 0, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 1, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 2, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery_button), 3, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery), 4, 0, 1, 2);
+  gtk_grid_set_column_homogeneous (GTK_GRID (grid), TRUE);
   gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (grid));
 
   headerbar = gtk_header_bar_new ();

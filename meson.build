@@ -21,6 +21,7 @@ gee_dep       = dependency('gee-0.8')
 gdk_dep       = dependency('gdk-3.0')
 gdk_dep       = dependency('gdk-x11-3.0')
 gtk_dep       = dependency('gtk+-3.0')
+hdy_dep       = dependency('libhandy-0.0', version: '>= 0.0.13')
 gst_dep       = dependency('gstreamer-1.0')
 gst_video_dep = dependency('gstreamer-video-1.0')
 gst_app_dep   = dependency('gstreamer-app-1.0')
@@ -32,6 +33,7 @@ libaperture_deps = [
   gee_dep,
   gdk_dep,
   gtk_dep,
+  hdy_dep,
   gst_dep,
   gst_video_dep,
   gst_app_dep,

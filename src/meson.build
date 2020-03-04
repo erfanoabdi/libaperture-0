@@ -14,6 +14,9 @@ libaperture_sources = files(
   'aperture-device-manager.vala',
   'aperture-disk-space.vala',
   'aperture-double-buffer.vala',
+  'aperture-gallery.vala',
+  'aperture-gallery-button.vala',
+  'aperture-gallery-page.vala',
   'aperture-microphone.vala',
   'aperture-shutter-button.vala',
   'aperture-tween.vala',
@@ -27,6 +30,7 @@ libaperture_vala_flags = [
 
 libaperture_c_flags = [
   '-DG_LOG_DOMAIN="aperture"',
+  '-DHANDY_USE_UNSTABLE_API',
 ]
 
 libaperture_header_install_dir = get_option('includedir') / 'aperture'

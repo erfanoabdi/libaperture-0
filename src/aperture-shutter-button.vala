@@ -42,9 +42,9 @@ public class Aperture.ShutterButton : Gtk.Button {
         this.draw.connect(this.on_draw);
 
         this.tween = new Tween(this);
-        this.tween["press"] = 3;
-        this.tween["mode"] = 1;
-        this.tween["record"] = 0;
+        this.tween.start("press", 3, 0);
+        this.tween.start("mode", 1, 0);
+        this.tween.start("record", 0, 0);
 
         this._mode = PICTURE;
 
