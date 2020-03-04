@@ -126,11 +126,12 @@ public class Aperture.GalleryButton : Gtk.Button {
     }
 
     /*
-     * Skip GtkButton's size_allocate method, which messes with the clip size,
-     * which we don't want.
+     * Gtk.Button.size_allocate sometimes messes with the clip size, which we
+     * don't want, so we need to make sure to set it back.
      */
     public override void size_allocate(Gtk.Allocation alloc) {
-        this.set_allocation(alloc);
+        base.size_allocate(alloc);
+        this.set_clip(alloc);
     }
 }
 
