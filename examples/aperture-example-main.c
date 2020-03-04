@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <aperture/aperture.h>
+#include <handy.h>
 
 
 void
@@ -129,18 +130,17 @@ main (int argc, char **argv)
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
   g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), button);
 
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 4, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button), 0, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 1, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 2, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery_button), 3, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery), 4, 0, 1, 2);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 3, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 0, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 1, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery_button), 2, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery), 3, 0, 1, 2);
   gtk_grid_set_column_homogeneous (GTK_GRID (grid), TRUE);
   gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (grid));
 
-  headerbar = gtk_header_bar_new ();
-  gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (headerbar), TRUE);
-  gtk_header_bar_set_title (GTK_HEADER_BAR (headerbar), "libaperture demo");
+  headerbar = hdy_header_bar_new ();
+  hdy_header_bar_set_show_close_button (HDY_HEADER_BAR (headerbar), TRUE);
+  hdy_header_bar_set_custom_title (HDY_HEADER_BAR (headerbar), GTK_WIDGET (button));
   gtk_window_set_titlebar (GTK_WINDOW (window), headerbar);
 
   gtk_widget_show_all (window);
