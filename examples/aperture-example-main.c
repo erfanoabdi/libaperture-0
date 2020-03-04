@@ -72,6 +72,16 @@ on_picture_taken (ApertureWidget *widget,
   g_free (path);
 }
 
+static void
+on_test_clicked (GtkButton *button, ApertureShutterButton *camera_button)
+{
+  if (aperture_shutter_button_get_mode (camera_button) == APERTURE_SHUTTER_BUTTON_MODE_RECORDING) {
+    aperture_shutter_button_set_mode (camera_button, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+  } else {
+    aperture_shutter_button_set_mode (camera_button, APERTURE_SHUTTER_BUTTON_MODE_RECORDING);
+  }
+}
+
 int
 main (int argc, char **argv)
 {
@@ -79,7 +89,8 @@ main (int argc, char **argv)
   ApertureWidget *widget;
   ApertureCameraSwitcherButton *switcher;
   GtkWidget *grid;
-  GtkWidget *button;
+  ApertureShutterButton *button;
+  GtkWidget *button2;
   GtkWidget *headerbar;
   const gchar *desktop;
 
@@ -93,19 +104,25 @@ main (int argc, char **argv)
   grid = gtk_grid_new ();
   switcher = aperture_camera_switcher_button_new ();
   gtk_widget_set_sensitive (GTK_WIDGET (switcher), TRUE);
-  button = gtk_button_new_with_label ("Take Picture");
+  button = aperture_shutter_button_new ();
+  button2 = gtk_button_new_with_label ("Test");
   widget = aperture_widget_new ();
 
   gtk_widget_set_size_request (GTK_WIDGET (widget), 200, 200);
+  gtk_widget_set_size_request (GTK_WIDGET (button), 68, 68);
+  aperture_shutter_button_set_mode (button, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+  g_object_set (button, "margin", 12, NULL);
 
   g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), widget);
   g_signal_connect (button, "clicked", G_CALLBACK (on_take_picture), widget);
   g_signal_connect (widget, "picture-taken", G_CALLBACK (on_picture_taken), widget);
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
+  g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), button);
 
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 2, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 3, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button), 0, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 1, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 1, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 2, 1, 1, 1);
   gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (grid));
 
   headerbar = gtk_header_bar_new ();

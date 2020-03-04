@@ -154,4 +154,36 @@ namespace Aperture {
         out_x = tw / 2 - w / 2;
         out_y = th / 2 - h / 2;
     }
+
+    /**
+     * Draws a rounded square on a Cairo context.
+     *
+     * It is up to the caller to call fill() or paint(); this just sets up the
+     * path.
+     *
+     * x and y are the coordinates of the center of the square.
+     */
+    public void rounded_square(Cairo.Context ctx, double size, double radius, double x, double y) {
+        x -= size;
+        y -= size;
+        size *= 2.0;
+
+        // top right
+        ctx.arc(x + size - radius, y + radius, radius, -0.5 * Math.PI, 0);
+
+        // bottom right
+        //ctx.line_to(x + size, y - radius);
+        ctx.arc(x + size - radius, y + size - radius, radius, 0, 0.5 * Math.PI);
+
+        // bottom left
+        //ctx.line_to(x + radius, y + size);
+        ctx.arc(x + radius, y + size - radius, radius, 0.5 * Math.PI, Math.PI);
+
+        // top left
+        //ctx.line_to(x, y + radius);
+        ctx.arc(x + radius, y + radius, radius, Math.PI, -0.5 * Math.PI);
+
+        // back to top right
+        ctx.line_to(x + size - radius, y);
+    }
 }

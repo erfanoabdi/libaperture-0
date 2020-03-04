@@ -12,6 +12,7 @@ gnome = import('gnome')
 i18n = import('i18n')
 pkgconfig = import('pkgconfig')
 
+cc = meson.get_compiler('c')
 g_ir_compiler = find_program('g-ir-compiler')
 
 gio_dep       = dependency('gio-2.0')
@@ -23,7 +24,7 @@ gtk_dep       = dependency('gtk+-3.0')
 gst_dep       = dependency('gstreamer-1.0')
 gst_video_dep = dependency('gstreamer-video-1.0')
 gst_app_dep   = dependency('gstreamer-app-1.0')
-
+libm          = cc.find_library('m', required : true)
 
 libaperture_deps = [
   glib_dep,

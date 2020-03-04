@@ -15,6 +15,8 @@ libaperture_sources = files(
   'aperture-disk-space.vala',
   'aperture-double-buffer.vala',
   'aperture-microphone.vala',
+  'aperture-shutter-button.vala',
+  'aperture-tween.vala',
   'aperture-video-profile.vala',
   'aperture-widget.vala',
 )
@@ -30,7 +32,7 @@ libaperture_c_flags = [
 libaperture_header_install_dir = get_option('includedir') / 'aperture'
 
 libaperture_lib = shared_library(libaperture_pc_name, libaperture_sources,
-  dependencies: [ libaperture_deps ],
+  dependencies: [ libaperture_deps, libm ],
   vala_args: libaperture_vala_flags,
   c_args: libaperture_c_flags,
   version: aperture_api_version,
@@ -66,6 +68,7 @@ pkgconfig.generate(libaperture_lib,
   description: 'The Aperture camera widget library for GTK',
   filebase: libaperture_pc_name,
   requires: libaperture_deps,
+  libraries: libm
 )
 
 libaperture_dep = declare_dependency(
