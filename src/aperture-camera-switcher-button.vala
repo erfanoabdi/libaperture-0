@@ -71,13 +71,13 @@ public class Aperture.CameraSwitcherButton : Gtk.Button {
         _devices.start();
 
         // make sure visibility is correct initially
-        this._on_camera_list_changed();
+        this._on_camera_list_changed(null);
 
         this.clicked.connect(_on_clicked);
     }
 
 
-    private void _on_camera_list_changed(Camera camera) {
+    private void _on_camera_list_changed(Camera? camera) {
         this.visible = _devices.cameras.length() > 1;
     }
 
