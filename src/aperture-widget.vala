@@ -179,8 +179,6 @@ public class Aperture.Widget : Gtk.Grid {
             convert.set_state(NULL);
             pixbufsink.set_state(NULL);
 
-            Gst.Debug.bin_to_dot_file(this.pipeline, ALL, "aperture1");
-
             pipeline.remove(q);
             pipeline.remove(convert);
             pipeline.remove(pixbufsink);
