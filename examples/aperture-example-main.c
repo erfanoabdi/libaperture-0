@@ -102,10 +102,7 @@ main (int argc, char **argv)
   desktop = g_get_user_special_dir (G_USER_DIRECTORY_DESKTOP);
   g_setenv ("GST_DEBUG_DUMP_DOT_DIR", desktop, TRUE);
 
-  gst_init (&argc, &argv);
-  gtk_init (&argc, &argv);
-  gtk_clutter_init (&argc, &argv);
-  clutter_gst_init (&argc, &argv);
+  aperture_init (&argc, &argv);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   grid = gtk_grid_new ();

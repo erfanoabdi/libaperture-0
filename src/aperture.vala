@@ -19,12 +19,27 @@
  */
 
 namespace Aperture {
+    private bool initialized = false;
+
+    public void init(
+            [CCode (array_length_pos=0, array_length_cname="argc", cname="argv")]
+            ref unowned string[] args) {
+
+        Gst.init(ref args);
+        GtkClutter.init(ref args);
+        ClutterGst.init(ref args);
+
+        initialized = true;
+    }
+
     /**
-     * Emits an error if GStreamer is not initialized.
+     * Emits an error if Aperture is not initialized.
      */
     public void init_check() {
-        if (!Gst.is_initialized()) {
-            critical("GStreamer is not initialized! Please call gst_init() before using libaperture.");
+        if (!initialized) {
+            critical("Aperture is not initialized! Please call aperture_init()"
+                     + " before using the rest of the library to avoid errors"
+                     + " and crashes.");
         }
     }
 

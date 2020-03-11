@@ -23,6 +23,7 @@ public interface Aperture.GstWidget : Gtk.Widget {
      * Creates an ApertureGstWidget instance.
      */
     public static GstWidget create() {
+        init_check();
         return new GstWidgetClutter();
     }
 
