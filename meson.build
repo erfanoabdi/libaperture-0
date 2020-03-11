@@ -25,6 +25,8 @@ hdy_dep       = dependency('libhandy-0.0', version: '>= 0.0.13')
 gst_dep       = dependency('gstreamer-1.0')
 gst_video_dep = dependency('gstreamer-video-1.0')
 gst_app_dep   = dependency('gstreamer-app-1.0')
+clutter_gtk_dep = dependency('clutter-gtk-1.0', version: '>= 1.8.1')
+clutter_gst_dep = dependency('clutter-gst-3.0', version: '>= 2.99.2')
 libm          = cc.find_library('m', required : true)
 
 libaperture_deps = [
@@ -37,6 +39,8 @@ libaperture_deps = [
   gst_dep,
   gst_video_dep,
   gst_app_dep,
+  clutter_gtk_dep,
+  clutter_gst_dep,
 ]
 
 subdir('src')

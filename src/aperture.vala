@@ -19,10 +19,6 @@
  */
 
 namespace Aperture {
-    [CCode]
-    private extern void copy_buffer_to_surface(Gst.Buffer buffer, Cairo.ImageSurface surf);
-
-
     /**
      * Emits an error if GStreamer is not initialized.
      */

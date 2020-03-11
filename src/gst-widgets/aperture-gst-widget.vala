@@ -1,4 +1,4 @@
-/* aperture.c
+/* aperture-gst-widget.vala
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -18,18 +18,16 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
+public interface Aperture.GstWidget : Gtk.Widget {
+    /**
+     * Creates an ApertureGstWidget instance.
+     */
+    public static GstWidget create() {
+        return new GstWidgetClutter();
+    }
 
-
-#include <glib.h>
-#include <cairo.h>
-#include <gst/gst.h>
-
-void
-aperture_copy_buffer_to_surface (GstBuffer *buf, cairo_surface_t *surface)
-{
-  guint length = cairo_image_surface_get_height (surface) * cairo_image_surface_get_stride (surface);
-  guint8 *data = cairo_image_surface_get_data (surface);
-  gst_buffer_extract (buf, 0, data, length);
-  cairo_surface_mark_dirty (surface);
+    /**
+     * Gets the sink element that should be linked to the pipeline.
+     */
+    public abstract Gst.Element get_sink();
 }
-

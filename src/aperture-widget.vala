@@ -50,15 +50,13 @@ public class Aperture.Widget : Gtk.Grid {
 
 
     // GTK WIDGETS
-    private Gtk.DrawingArea _viewfinder;
+    private GstWidget viewfinder;
 
     // GST ELEMENTS
     private Gst.Pipeline pipeline;
     private Gst.Element _source;
     private Gst.Element _convert1;
     private Gst.Element tee;
-    private dynamic Gst.Element capsfilter;
-    private Gst.App.Sink sink;
     private DoubleBuffer buffer;
 
     private delegate void BusCallback(Gst.Message msg);
@@ -70,12 +68,12 @@ public class Aperture.Widget : Gtk.Grid {
         init_check();
 
         // Build the widget
-        _viewfinder = new Gtk.DrawingArea();
-        _viewfinder.draw.connect(this.on_draw);
-        _viewfinder.configure_event.connect(this.on_configure_event);
-        _viewfinder.expand = true;
-        _viewfinder.visible = true;
-        this.attach(this._viewfinder, 0, 0);
+        this.viewfinder = GstWidget.create();
+        this.viewfinder.configure_event.connect(this.on_configure_event);
+        this.viewfinder.expand = true;
+        this.viewfinder.visible = true;
+        this.attach(this.viewfinder, 0, 0);
+        var sink = this.viewfinder.get_sink();
 
         // Create pipeline and set up message handlers
         pipeline = new Gst.Pipeline(null);
@@ -87,24 +85,12 @@ public class Aperture.Widget : Gtk.Grid {
         _convert1 = create_element("videoconvert");
         this.tee = create_element("tee");
         Gst.Element q1 = create_element("queue");
-        dynamic Gst.Element capsfilter1 = create_element("capsfilter");
         dynamic Gst.Element videoscale = create_element("videoscale");
-        this.capsfilter = create_element("capsfilter");
-        this.sink = (Gst.App.Sink) create_element("appsink");
 
-        this.capsfilter.caps = new Gst.Caps.simple("video/x-raw",
-            "format", typeof(string), BYTE_ORDER == LITTLE_ENDIAN ? "BGRA" : "RGBA",
-            "pixel-aspect-ratio", typeof(Gst.Fraction), 1, 1
-        );
-        capsfilter1.caps = new Gst.Caps.simple("video/x-raw",
-            "pixel-aspect-ratio", typeof(Gst.Fraction), 1, 1
-        );
         videoscale.add_borders = true;
-        this.sink.new_sample.connect(this.on_new_sample);
-        this.sink.emit_signals = true;
 
-        pipeline.add_many(_convert1, this.tee, q1, capsfilter1, videoscale, capsfilter, sink);
-        _convert1.link_many(this.tee, q1, capsfilter1, videoscale, capsfilter, sink);
+        pipeline.add_many(_convert1, this.tee, q1, videoscale, sink);
+        _convert1.link_many(this.tee, q1, videoscale, sink);
 
         // Pick a camera
         var devices = DeviceManager.get_instance();
@@ -140,6 +126,7 @@ public class Aperture.Widget : Gtk.Grid {
      * emitted with the picture.
      */
     public void take_picture() {
+        this.debug_dump();
         this.state = TAKING_PICTURE;
 
         Gst.Element q = create_element("queue");
@@ -222,7 +209,7 @@ public class Aperture.Widget : Gtk.Grid {
         _source.link(_convert1);
         _source.sync_state_with_parent();
 
-        if (_viewfinder.get_realized()) {
+        if (this.viewfinder.get_realized()) {
             pipeline.set_state(PLAYING);
         }
 
@@ -232,14 +219,7 @@ public class Aperture.Widget : Gtk.Grid {
 
     private bool on_configure_event() {
         Gtk.Allocation alloc;
-        this._viewfinder.get_allocation(out alloc);
-
-        this.capsfilter.caps = new Gst.Caps.simple("video/x-raw",
-            "format", typeof(string), BYTE_ORDER == LITTLE_ENDIAN ? "BGRA" : "RGBA",
-            "width", typeof(int), alloc.width,
-            "height", typeof(int), alloc.height,
-            "pixel-aspect-ratio", typeof(Gst.Fraction), 1, 1
-        );
+        this.viewfinder.get_allocation(out alloc);
 
         return false;
     }
@@ -278,49 +258,6 @@ public class Aperture.Widget : Gtk.Grid {
                 this.state = NO_CAMERAS;
             }
         }
-    }
-
-
-    private bool on_draw(Cairo.Context ctx) {
-        // Clear background
-        Gtk.Allocation alloc;
-        _viewfinder.get_allocation(out alloc);
-        ctx.set_source_rgb(0, 0, 0);
-        ctx.rectangle(0, 0, alloc.width, alloc.height);
-        ctx.fill();
-
-        // Draw latest buffer
-        this.buffer.with_front((front) => {
-            ctx.set_source_surface(front, 0, 0);
-            ctx.paint();
-        });
-
-        return false;
-    }
-
-
-    private Gst.FlowReturn on_new_sample(Gst.App.Sink sink) {
-        Gst.Sample sample = this.sink.pull_sample();
-        if (sample == null) return Gst.FlowReturn.EOS;
-
-        unowned Gst.Structure s = sample.get_caps().get_structure(0);
-        int width, height;
-        s.get_int("width", out width);
-        s.get_int("height", out height);
-        this.buffer.resize(width, height);
-
-        Gst.Buffer buf = sample.get_buffer();
-        this.buffer.with_back((back) => {
-            copy_buffer_to_surface(buf, back);
-        });
-        this.buffer.swap();
-
-        Idle.add(() => {
-            this._viewfinder.queue_draw();
-            return Source.REMOVE;
-        });
-
-        return Gst.FlowReturn.OK;
     }
 
 

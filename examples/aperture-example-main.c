@@ -104,6 +104,8 @@ main (int argc, char **argv)
 
   gst_init (&argc, &argv);
   gtk_init (&argc, &argv);
+  gtk_clutter_init (&argc, &argv);
+  clutter_gst_init (&argc, &argv);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   grid = gtk_grid_new ();
