@@ -14,8 +14,6 @@ libaperture_sources = files(
   'aperture-camera-switcher-button.vala',
   'aperture-device.vala',
   'aperture-device-manager.vala',
-  'aperture-disk-space.vala',
-  'aperture-double-buffer.vala',
   'aperture-gallery.vala',
   'aperture-gallery-button.vala',
   'aperture-gallery-page.vala',

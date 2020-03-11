@@ -19,6 +19,12 @@
  */
 
 
+/**
+ * A page in an #ApertureGallery.
+ *
+ * Images are simply displayed. Videos show a thumbnail, which can be clicked
+ * to play the video.
+ */
 public class Aperture.GalleryPage : Gtk.EventBox {
     public File file { get; construct; }
     public Gdk.Pixbuf pixbuf { get; construct; }
@@ -27,6 +33,9 @@ public class Aperture.GalleryPage : Gtk.EventBox {
     private Gtk.DrawingArea da;
 
 
+    /**
+     * Creates a new image #ApertureGalleryPage with the given image.
+     */
     public GalleryPage.for_image(Gdk.Pixbuf pixbuf) {
         Object(pixbuf: pixbuf);
     }

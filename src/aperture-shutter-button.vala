@@ -18,8 +18,21 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
-public class Aperture.ShutterButton : Gtk.ToggleButton {
+
+/**
+ * A shutter button, like the ones seen in most camera apps.
+ *
+ * The button supports many different modes, such as taking pictures, taking
+ * video, active recording, etc. It is up to the application to manage these
+ * modes and perform the right actions when the button is clicked.
+ * #ApertureShutterButton is little more than a #GtkButton with custom drawing,
+ * and it does not operate an #ApertureWidget automatically.
+ */
+public class Aperture.ShutterButton : Gtk.Button {
     private ShutterButtonMode _mode;
+    /**
+     * The button's mode, which determines its appearance.
+     */
     public ShutterButtonMode mode {
         get {
             return _mode;
@@ -126,7 +139,18 @@ public class Aperture.ShutterButton : Gtk.ToggleButton {
 }
 
 public enum Aperture.ShutterButtonMode {
+    /**
+     * The button is a white circle with a white border.
+     */
     PICTURE,
+
+    /**
+     * The button is a red circle with a white border.
+     */
     VIDEO,
+
+    /**
+     * The inside of the button is a red square.
+     */
     RECORDING
 }

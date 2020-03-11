@@ -21,9 +21,19 @@
 namespace Aperture {
     private bool initialized = false;
 
+    /**
+     * Initializes the Aperture library, along with several libraries it
+     * depends on. This should be done before any part of the API is used.
+     *
+     * It is safe to call this multiple times.
+     */
     public void init(
             [CCode (array_length_pos=0, array_length_cname="argc", cname="argv")]
             ref unowned string[] args) {
+
+        if (initialized) {
+            return;
+        }
 
         Gst.init(ref args);
         GtkClutter.init(ref args);
@@ -33,9 +43,16 @@ namespace Aperture {
     }
 
     /**
+     * Checks whether aperture_init() has been called.
+     */
+    public bool is_initialized() {
+        return initialized;
+    }
+
+    /*
      * Emits an error if Aperture is not initialized.
      */
-    public void init_check() {
+    private void init_check() {
         if (!initialized) {
             critical("Aperture is not initialized! Please call aperture_init()"
                      + " before using the rest of the library to avoid errors"
@@ -43,6 +60,10 @@ namespace Aperture {
         }
     }
 
+    /**
+     * A debugging tool that prints a #GstStructure to stdout in an easily
+     * readable format.
+     */
     public void pretty_print_structure(Gst.Structure structure) {
         print("%s\n", structure.get_name());
 
@@ -54,6 +75,11 @@ namespace Aperture {
     }
 
 
+    /**
+     * Represents a fraction.
+     *
+     * This is used for video framerates, among other things.
+     */
     [Compact][Immutable]
     public struct Fraction {
         int num;
@@ -74,6 +100,9 @@ namespace Aperture {
         }
     }
 
+    /**
+     * Represents a range of integers.
+     */
     [Compact][Immutable]
     public struct Range {
         int min;
@@ -109,11 +138,11 @@ namespace Aperture {
     }
 
 
-    /**
+    /*
      * Scales the rectangle (w, h) up or down to fit perfectly in (tw, th).
      */
-    public void scale_to_fit(ref double w, ref double h,
-                             double tw, double th) {
+    private static void scale_to_fit(ref double w, ref double h,
+                                     double tw, double th) {
         double ratio = w / h;
         double t_ratio = tw / th;
         if (t_ratio < ratio) {
@@ -125,11 +154,11 @@ namespace Aperture {
         }
     }
 
-    /**
+    /*
      * Scales the rectangle (w, h) to completely fill (tw, th).
      */
-    public void scale_to_fill(ref double w, ref double h,
-                              double tw, double th) {
+    private static void scale_to_fill(ref double w, ref double h,
+                                      double tw, double th) {
         double ratio = w / h;
         double t_ratio = tw / th;
         if (t_ratio > ratio) {
@@ -141,32 +170,18 @@ namespace Aperture {
         }
     }
 
-    /**
-     * Same as scale_to_fit(), but does not make the rectangle bigger; if the
-     * first rectangle is smaller than the second, no change will be made.
-     */
-    public void shrink_to_fit(ref double w, ref double h,
-                              double tw, double th) {
-        double nw = w, nh = h;
-        scale_to_fit(ref nw, ref nh, tw, th);
-        if (nw < w) {
-            w = nw;
-            h = nh;
-        }
-    }
-
-    /**
+    /*
      * Finds the amount to translate the first rectangle so that it is centered
      * on the second.
      */
-    public void center(double w, double h,
-                       double tw, double th,
-                       out double out_x, out double out_y) {
+    private static void center(double w, double h,
+                               double tw, double th,
+                               out double out_x, out double out_y) {
         out_x = tw / 2 - w / 2;
         out_y = th / 2 - h / 2;
     }
 
-    /**
+    /*
      * Draws a rounded square on a Cairo context.
      *
      * It is up to the caller to call fill() or paint(); this just sets up the
@@ -174,26 +189,19 @@ namespace Aperture {
      *
      * x and y are the coordinates of the center of the square.
      */
-    public void rounded_square(Cairo.Context ctx, double size, double radius, double x, double y) {
+    private void rounded_square(Cairo.Context ctx, double size, double radius, double x, double y) {
         x -= size;
         y -= size;
         size *= 2.0;
 
         // top right
         ctx.arc(x + size - radius, y + radius, radius, -0.5 * Math.PI, 0);
-
         // bottom right
-        //ctx.line_to(x + size, y - radius);
         ctx.arc(x + size - radius, y + size - radius, radius, 0, 0.5 * Math.PI);
-
         // bottom left
-        //ctx.line_to(x + radius, y + size);
         ctx.arc(x + radius, y + size - radius, radius, 0.5 * Math.PI, Math.PI);
-
         // top left
-        //ctx.line_to(x, y + radius);
         ctx.arc(x + radius, y + radius, radius, Math.PI, -0.5 * Math.PI);
-
         // back to top right
         ctx.line_to(x + size - radius, y);
     }

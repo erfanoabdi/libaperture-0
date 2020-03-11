@@ -18,6 +18,10 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
+
+/**
+ * Represents a device, either a camera or microphone.
+ */
 public abstract class Aperture.Device : Object {
     /**
      * A user-friendly name for this camera device.
@@ -39,6 +43,10 @@ public abstract class Aperture.Device : Object {
     }
 
 
+    /**
+     * Creates a GStreamer source element that provides input from this device
+     * to a pipeline.
+     */
     public Gst.Element create_gstreamer_source(string? name=null) {
         return this.device.create_element(name);
     }

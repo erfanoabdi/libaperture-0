@@ -18,6 +18,10 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
+
+/**
+ * Lists devices known to Aperture and monitors for new or removed devices.
+ */
 public class Aperture.DeviceManager : Object {
     private static DeviceManager _instance;
     public static DeviceManager get_instance() {
@@ -39,19 +43,29 @@ public class Aperture.DeviceManager : Object {
     public signal void camera_removed(Camera camera);
 
     /**
-     * Emitted when a new camera is discovered.
+     * Emitted when a new microphone is discovered.
      */
     public signal void microphone_added(Microphone microphone);
 
     /**
-     * Emitted when a camera is removed (unplugged, turned off, etc.)
+     * Emitted when a microphone is removed (unplugged, turned off, etc.)
      */
     public signal void microphone_removed(Microphone microphone);
 
 
-    public List<Microphone> microphones = new List<Microphone>();
-
+    /**
+     * A list of the cameras known to Aperture.
+     *
+     * Do not modify this list.
+     */
     public List<Camera> cameras = new List<Camera>();
+
+    /**
+     * A list of the microphones known to Aperture.
+     *
+     * Do not modify this list.
+     */
+    public List<Microphone> microphones = new List<Microphone>();
 
 
     private Gst.DeviceMonitor _monitor;
@@ -67,6 +81,10 @@ public class Aperture.DeviceManager : Object {
     private DeviceManager() {}
 
 
+    /**
+     * Starts the #ApertureDeviceManager. This must be called before the
+     * monitor is used.
+     */
     public void start() {
         if (_started) {
             return;

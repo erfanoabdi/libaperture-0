@@ -18,12 +18,22 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
+
+/**
+ * Represents an audio source device.
+ */
 public class Aperture.Microphone : Device {
     internal Microphone(Gst.Device device) {
         Object(device: device);
     }
 
 
+    /**
+     * Gets the audio profiles this device is capable of providing.
+     *
+     * Many results may be returned in order to cover every combination of
+     * bitrates, formats, etc.
+     */
     public List<AudioProfile?> get_available_profiles() {
         var caps = device.get_caps();
         uint size = caps.get_size();

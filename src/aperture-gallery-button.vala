@@ -19,8 +19,20 @@
  */
 
 
+/**
+ * A button intended to be used to show a Gallery.
+ *
+ * #ApertureGalleryButton is a specially-styled button that shows a thumbnail
+ * of the latest media in a gallery.
+ *
+ * Actually showing the gallery is left to the application, since there are
+ * multiple ways this could be done (using a dialog, or with stacks, etc.)
+ */
 public class Aperture.GalleryButton : Gtk.Button {
     private Gallery _gallery;
+    /**
+     * The gallery that the #ApertureGalleryButton is connected to.
+     */
     public Gallery gallery {
         get {
             return _gallery;

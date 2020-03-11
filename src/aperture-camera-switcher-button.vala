@@ -19,6 +19,14 @@
  */
 
 
+/**
+ * A button for switching between available cameras.
+ *
+ * Clicking the button cycles between cameras. If zero or one cameras are
+ * present, then the button will become invisible. Thus, applications should
+ * not set the widget's visibility themselves, but use a wrapper container if
+ * necessary.
+ */
 public class Aperture.CameraSwitcherButton : Gtk.Button {
     public signal void camera_changed(Camera new_camera);
 
@@ -29,24 +37,24 @@ public class Aperture.CameraSwitcherButton : Gtk.Button {
             return _camera_index;
         }
         set {
-            if (value >= _devices.cameras.length()) {
+            if (value >= this.devices.cameras.length()) {
                 value = 0;
             }
 
             if (value != _camera_index) {
                 _camera_index = value;
-                this.camera_changed(_devices.cameras.nth_data(_camera_index));
+                this.camera_changed(this.devices.cameras.nth_data(_camera_index));
             }
         }
     }
 
     public Camera camera {
         get {
-            return _devices.cameras.nth_data(this.camera_index);
+            return this.devices.cameras.nth_data(this.camera_index);
         }
         set {
-            for (int i = 0, n = (int) _devices.cameras.length(); i < n; i ++) {
-                if (_devices.cameras.nth_data(i) == value) {
+            for (int i = 0, n = (int) this.devices.cameras.length(); i < n; i ++) {
+                if (this.devices.cameras.nth_data(i) == value) {
                     this.camera_index = i;
                     return;
                 }
@@ -55,7 +63,7 @@ public class Aperture.CameraSwitcherButton : Gtk.Button {
     }
 
 
-    private DeviceManager _devices;
+    private DeviceManager devices;
 
 
     construct {
@@ -65,23 +73,23 @@ public class Aperture.CameraSwitcherButton : Gtk.Button {
 
         this.no_show_all = true;
 
-        _devices = DeviceManager.get_instance();
-        _devices.camera_added.connect(_on_camera_list_changed);
-        _devices.camera_removed.connect(_on_camera_list_changed);
-        _devices.start();
+        this.devices = DeviceManager.get_instance();
+        this.devices.camera_added.connect(on_camera_list_changed);
+        this.devices.camera_removed.connect(on_camera_list_changed);
+        this.devices.start();
 
         // make sure visibility is correct initially
-        this._on_camera_list_changed(null);
+        this.on_camera_list_changed(null);
 
-        this.clicked.connect(_on_clicked);
+        this.clicked.connect(on_clicked);
     }
 
 
-    private void _on_camera_list_changed(Camera? camera) {
-        this.visible = _devices.cameras.length() > 1;
+    private void on_camera_list_changed(Camera? camera) {
+        this.visible = this.devices.cameras.length() > 1;
     }
 
-    private void _on_clicked() {
+    private void on_clicked() {
         int index = this.camera_index + 1;
 
         this.camera_index = index;

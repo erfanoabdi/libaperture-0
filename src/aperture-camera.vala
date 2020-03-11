@@ -18,12 +18,22 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
+
+/**
+ * Represents a video source device.
+ */
 public class Aperture.Camera : Device {
     internal Camera(Gst.Device device) {
         Object(device: device);
     }
 
 
+    /**
+     * Gets the video profiles that the camera is able to provide.
+     *
+     * Many results may be returned in order to cover every combination of
+     * framerates, resolutions, formats, etc.
+     */
     public List<VideoProfile?> get_available_profiles() {
         var caps = device.get_caps();
         uint size = caps.get_size();

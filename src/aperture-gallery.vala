@@ -19,6 +19,9 @@
  */
 
 
+/**
+ * A widget that displays images and videos in a #HdyPaginator.
+ */
 public class Aperture.Gallery : Gtk.Grid {
     public signal void item_added(GalleryPage thumbnail);
 
@@ -34,6 +37,9 @@ public class Aperture.Gallery : Gtk.Grid {
     }
 
 
+    /**
+     * Adds an image to the end of the gallery.
+     */
     public void add_image(Gdk.Pixbuf pixbuf) {
         var page = new GalleryPage.for_image(pixbuf);
         page.visible = true;
@@ -43,6 +49,11 @@ public class Aperture.Gallery : Gtk.Grid {
         this.item_added(page);
     }
 
+    /**
+     * Gets a list of the pages in the gallery.
+     *
+     * Do not modify the returned list.
+     */
     public List<weak GalleryPage> get_items() {
         return (List<weak GalleryPage>) this.paginator.get_children();
     }

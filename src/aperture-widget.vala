@@ -19,6 +19,10 @@
  */
 
 
+/**
+ * A widget for displaying a camera feed and taking pictures and videos from
+ * it.
+ */
 public class Aperture.Widget : Gtk.Grid {
     private Camera _camera;
     /**
@@ -54,10 +58,9 @@ public class Aperture.Widget : Gtk.Grid {
 
     // GST ELEMENTS
     private Gst.Pipeline pipeline;
-    private Gst.Element _source;
-    private Gst.Element _convert1;
+    private Gst.Element source;
+    private Gst.Element convert;
     private Gst.Element tee;
-    private DoubleBuffer buffer;
 
     private delegate void BusCallback(Gst.Message msg);
     private BusCallback finish_taking_picture;
@@ -79,18 +82,16 @@ public class Aperture.Widget : Gtk.Grid {
         pipeline = new Gst.Pipeline(null);
         pipeline.get_bus().add_watch(Priority.DEFAULT, _on_bus_message_async);
 
-        buffer = new DoubleBuffer(1, 1);
-
         // Create and connect all the elements
-        _convert1 = create_element("videoconvert");
+        this.convert = create_element("videoconvert");
         this.tee = create_element("tee");
         Gst.Element q1 = create_element("queue");
         dynamic Gst.Element videoscale = create_element("videoscale");
 
         videoscale.add_borders = true;
 
-        pipeline.add_many(_convert1, this.tee, q1, videoscale, sink);
-        _convert1.link_many(this.tee, q1, videoscale, sink);
+        pipeline.add_many(this.convert, this.tee, q1, videoscale, sink);
+        this.convert.link_many(this.tee, q1, videoscale, sink);
 
         // Pick a camera
         var devices = DeviceManager.get_instance();
@@ -109,7 +110,7 @@ public class Aperture.Widget : Gtk.Grid {
 
     ~Widget() {
         // Make sure the pipeline is in NULL state before it is finalized!
-        if (_source != null) {
+        if (this.source != null) {
             pipeline.set_state(NULL);
         }
     }
@@ -186,13 +187,22 @@ public class Aperture.Widget : Gtk.Grid {
         pixbufsink.set_state(PLAYING);
     }
 
+    /**
+     * Creates a graph of the #ApertureWidget's pipeline, for debugging.
+     *
+     * The graph can be converted to an image using GraphViz's dot command,
+     * like this: `dot -Tpng -o aperture-widget.png aperture-widget.dot`
+     *
+     * For this to work, the GST_DEBUG_DUMP_DOT_DIR environment variable must
+     * be set to a directory path in which to place the file.
+     */
     public void debug_dump(string name="aperture-widget") {
         Gst.Debug.bin_to_dot_file(this.pipeline, ALL, name);
     }
 
 
     private void _set_camera(Camera new_device) {
-        var old_source = _source;
+        var old_source = this.source;
         var new_source = new_device.create_gstreamer_source();
 
         if (old_source != null) {
@@ -204,10 +214,10 @@ public class Aperture.Widget : Gtk.Grid {
             pipeline.remove(old_source);
         }
 
-        _source = new_source;
-        pipeline.add(_source);
-        _source.link(_convert1);
-        _source.sync_state_with_parent();
+        this.source = new_source;
+        pipeline.add(this.source);
+        this.source.link(this.convert);
+        this.source.sync_state_with_parent();
 
         if (this.viewfinder.get_realized()) {
             pipeline.set_state(PLAYING);
