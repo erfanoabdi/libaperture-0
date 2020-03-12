@@ -27,6 +27,7 @@ gst_video_dep = dependency('gstreamer-video-1.0')
 gst_app_dep   = dependency('gstreamer-app-1.0')
 clutter_gtk_dep = dependency('clutter-gtk-1.0', version: '>= 1.8.1')
 clutter_gst_dep = dependency('clutter-gst-3.0', version: '>= 2.99.2')
+x11_dep       = dependency('x11')
 libm          = cc.find_library('m', required : true)
 
 libaperture_deps = [
