@@ -71,18 +71,18 @@ public class Aperture.GalleryButton : Gtk.Button {
         double outer_radius = radius;
 
         var pages = this.gallery.get_items();
-        unowned List<weak GalleryPage> last = pages.last();
+        unowned List<weak GalleryPage> first = pages.first();
 
-        if (last == null) {
+        if (first == null) {
             return true;
         }
 
-        if (last.prev != null && size != 1) {
+        if (first.next != null && size != 1) {
             outer_radius = size / 2.0;
-            this.draw_image(ctx, width, height, size / 2.0, last.prev.data.pixbuf);
+            this.draw_image(ctx, width, height, size / 2.0, first.next.data.pixbuf);
         }
 
-        this.draw_image(ctx, width, height, radius, last.data.pixbuf);
+        this.draw_image(ctx, width, height, radius, first.data.pixbuf);
 
         ctx.arc(width / 2.0, height / 2.0, outer_radius, 0, 2 * Math.PI);
         ctx.set_line_width(1.5);

@@ -22,30 +22,94 @@
 /**
  * A widget that displays images and videos in a #HdyPaginator.
  */
-public class Aperture.Gallery : Gtk.Grid {
+public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
     public signal void item_added(GalleryPage thumbnail);
-
 
     private Hdy.Paginator paginator;
 
+    private List<GalleryPage> pages;
+
+    private Aperture.Widget _widget;
+    public Aperture.Widget widget {
+        get { return this._widget; }
+        set {
+            if (value == this.widget) {
+                return;
+            }
+
+            if (this.widget != null) {
+                this.paginator.remove(this.widget);
+            }
+
+            this._widget = value;
+
+            if (this.widget != null) {
+                this.paginator.prepend(this.widget);
+                this.widget.expand = true;
+            }
+
+            this.notify_property("is-widget-visible");
+        }
+    }
+
+    public bool is_widget_visible {
+        get {
+            return this.widget != null && this.paginator.position < 1;
+        }
+    }
+
+    public double progress {
+        get {
+            if (this.widget == null) {
+                return 1;
+            }
+
+            return this.paginator.position.clamp(0, 1);
+        }
+    }
 
     construct {
         this.paginator = new Hdy.Paginator();
         this.paginator.visible = true;
-        this.paginator.indicator_style = DOTS;
+        this.paginator.notify["position"].connect(() => {
+            this.notify_property("progress");
+            this.notify_property("is-widget-visible");
+        });
         this.add(this.paginator);
     }
 
+    public void open() {
+        if (this.widget == null) {
+            warning("Can't open the gallery without widget.");
+            return;
+        }
+
+        var items = this.get_items();
+        if (items.length() < 1)
+            return;
+
+        this.paginator.scroll_to(items.first().data);
+    }
+
+    public void close() {
+        if (this.widget == null) {
+            warning("Can't close the gallery without widget.");
+            return;
+        }
+
+        this.paginator.scroll_to(widget);
+    }
 
     /**
-     * Adds an image to the end of the gallery.
+     * Adds an image to the gallery.
      */
     public void add_image(Gdk.Pixbuf pixbuf) {
         var page = new GalleryPage.for_image(pixbuf);
         page.visible = true;
         page.expand = true;
 
-        this.paginator.insert(page, -1);
+        this.pages.prepend(page);
+        this.paginator.insert(page, this.widget != null ? 1 : 0);
         this.item_added(page);
     }
 
@@ -55,6 +119,16 @@ public class Aperture.Gallery : Gtk.Grid {
      * Do not modify the returned list.
      */
     public List<weak GalleryPage> get_items() {
-        return (List<weak GalleryPage>) this.paginator.get_children();
+        return this.pages.copy ();
+    }
+
+    public void add_child (Gtk.Builder builder, Object child, string? type) {
+        if (type == "widget") {
+            assert (child is Aperture.Widget);
+            this.widget = child as Aperture.Widget;
+            return;
+        }
+
+        base.add_child (builder, child, type);
     }
 }
