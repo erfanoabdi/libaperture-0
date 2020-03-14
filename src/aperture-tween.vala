@@ -45,7 +45,7 @@ internal class Aperture.Tween {
         double to;
 
         public bool is_active(int64 time) {
-            if (duration == 0) {
+            if (duration <= 0) {
                 return false;
             }
 
@@ -53,7 +53,7 @@ internal class Aperture.Tween {
         }
 
         public double get_val(int64 time) {
-            if (duration == 0) {
+            if (duration <= 0) {
                 return to;
             }
 

@@ -32,6 +32,10 @@ public class Aperture.ShutterButton : Gtk.Button {
     private ShutterButtonMode _mode;
     /**
      * The button's mode, which determines its appearance.
+     *
+     * If the mode is set to COUNTDOWN, the countdown animation will begin. It
+     * will end after :countdown seconds, and the application is responsible
+     * for setting the mode back to PICTURE.
      */
     public ShutterButtonMode mode {
         get {
@@ -47,6 +51,13 @@ public class Aperture.ShutterButton : Gtk.Button {
         }
     }
 
+    /**
+     * The duration of the countdown timer, or 0 if there is no countdown.
+     *
+     * If a countdown is active, it will not be affected.
+     */
+    public int countdown { get; set; default=0; }
+
 
     private Tween tween;
 
@@ -58,6 +69,7 @@ public class Aperture.ShutterButton : Gtk.Button {
         this.tween.start("press", 3, 0);
         this.tween.start("mode", 1, 0);
         this.tween.start("record", 0, 0);
+        this.tween.start("countdown", 1, 0);
 
         this._mode = PICTURE;
 
@@ -69,12 +81,19 @@ public class Aperture.ShutterButton : Gtk.Button {
         if (mode == PICTURE) {
             this.tween["mode"] = 1;
             this.tween["record"] = 0;
+            this.tween.start("countdown", 1, 0);
         } else if (mode == VIDEO) {
             this.tween["mode"] = 0;
             this.tween["record"] = 0;
+            this.tween.start("countdown", 1, 0);
         } else if (mode == RECORDING) {
             this.tween["mode"] = 0;
             this.tween["record"] = 1;
+            this.tween.start("countdown", 1, 0);
+        } else if (mode == COUNTDOWN) {
+            this.tween["mode"] = 1;
+            this.tween["record"] = 0;
+            this.tween.start("countdown", 0, this.countdown * 1000);
         }
     }
 
@@ -102,7 +121,8 @@ public class Aperture.ShutterButton : Gtk.Button {
 
         ctx.set_line_width(line);
         ctx.set_source_rgb(color, color, color);
-        ctx.arc(width / 2.0, height / 2.0, (size - line) / 2, 0, 2 * Math.PI);
+
+        ctx.arc_negative(width / 2.0, height / 2.0, (size - line) / 2, 1.5 * Math.PI, (2 * this.tween["countdown"] - 1.5) * -Math.PI);
         ctx.stroke();
 
         ctx.set_source_rgb(color, mode_color, mode_color);
@@ -152,5 +172,10 @@ public enum Aperture.ShutterButtonMode {
     /**
      * The inside of the button is a red square.
      */
-    RECORDING
+    RECORDING,
+
+    /**
+     * A countdown is running.
+     */
+    COUNTDOWN,
 }

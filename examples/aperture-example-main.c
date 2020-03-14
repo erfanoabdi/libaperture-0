@@ -76,12 +76,12 @@ on_picture_taken (ApertureWidget  *widget,
 }
 
 static void
-on_test_clicked (GtkButton *button, ApertureShutterButton *camera_button)
+on_test_clicked (GtkButton *button, ApertureShutterButton *shutter)
 {
-  if (aperture_shutter_button_get_mode (camera_button) == APERTURE_SHUTTER_BUTTON_MODE_RECORDING) {
-    aperture_shutter_button_set_mode (camera_button, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+  if (aperture_shutter_button_get_mode (shutter) == APERTURE_SHUTTER_BUTTON_MODE_COUNTDOWN) {
+    aperture_shutter_button_set_mode (shutter, APERTURE_SHUTTER_BUTTON_MODE_PICTURE);
   } else {
-    aperture_shutter_button_set_mode (camera_button, APERTURE_SHUTTER_BUTTON_MODE_RECORDING);
+    aperture_shutter_button_set_mode (shutter, APERTURE_SHUTTER_BUTTON_MODE_COUNTDOWN);
   }
 }
 
@@ -92,7 +92,7 @@ main (int argc, char **argv)
   ApertureWidget *widget;
   ApertureCameraSwitcherButton *switcher;
   GtkWidget *grid;
-  ApertureShutterButton *button;
+  ApertureShutterButton *shutter;
   ApertureGallery *gallery;
   ApertureGalleryButton *gallery_button;
   GtkWidget *button2;
@@ -109,26 +109,27 @@ main (int argc, char **argv)
   grid = gtk_grid_new ();
   switcher = aperture_camera_switcher_button_new ();
   gtk_widget_set_sensitive (GTK_WIDGET (switcher), TRUE);
-  button = aperture_shutter_button_new ();
+  shutter = aperture_shutter_button_new ();
   button2 = gtk_button_new_with_label ("Test");
   gallery = aperture_gallery_new ();
   gallery_button = aperture_gallery_button_new ();
   widget = aperture_widget_new ();
 
   gtk_widget_set_size_request (GTK_WIDGET (widget), 200, 200);
-  gtk_widget_set_size_request (GTK_WIDGET (button), 68, 68);
+  gtk_widget_set_size_request (GTK_WIDGET (shutter), 44, 44);
   gtk_widget_set_size_request (GTK_WIDGET (gallery_button), 56, 56);
-  aperture_shutter_button_set_mode (button, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+  aperture_shutter_button_set_mode (shutter, APERTURE_SHUTTER_BUTTON_MODE_PICTURE);
+  aperture_shutter_button_set_countdown (shutter, 5);
+  g_object_set (shutter, "margin", 12, NULL);
   aperture_gallery_button_set_gallery (gallery_button, gallery);
   gtk_widget_set_halign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
   gtk_widget_set_valign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
-  g_object_set (button, "margin", 12, NULL);
 
   g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), widget);
-  g_signal_connect (button, "clicked", G_CALLBACK (on_take_picture), widget);
+  g_signal_connect (shutter, "clicked", G_CALLBACK (on_take_picture), widget);
   g_signal_connect (widget, "picture-taken", G_CALLBACK (on_picture_taken), gallery);
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
-  g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), button);
+  g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), shutter);
 
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 3, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 0, 1, 1, 1);
@@ -140,7 +141,7 @@ main (int argc, char **argv)
 
   headerbar = hdy_header_bar_new ();
   hdy_header_bar_set_show_close_button (HDY_HEADER_BAR (headerbar), TRUE);
-  hdy_header_bar_set_custom_title (HDY_HEADER_BAR (headerbar), GTK_WIDGET (button));
+  hdy_header_bar_set_custom_title (HDY_HEADER_BAR (headerbar), GTK_WIDGET (shutter));
   gtk_window_set_titlebar (GTK_WINDOW (window), headerbar);
 
   gtk_widget_show_all (window);
