@@ -70,13 +70,17 @@ public class Aperture.Widget : Gtk.Grid {
         // Make sure Aperture is initialized
         init_check();
 
-        // Build the widget
-        this.viewfinder = GstWidget.create();
-        this.viewfinder.configure_event.connect(this.on_configure_event);
+        // Create the viewfinder
+        this.viewfinder = new GstWidget();
         this.viewfinder.expand = true;
         this.viewfinder.visible = true;
         this.attach(this.viewfinder, 0, 0);
         var sink = this.viewfinder.get_sink();
+        var viewfinder_bin = this.viewfinder.get_bin();
+
+        // Set up signals
+        this.realize.connect(on_realize);
+        this.unrealize.connect(on_unrealize);
 
         // Create pipeline and set up message handlers
         pipeline = new Gst.Pipeline(null);
@@ -90,7 +94,7 @@ public class Aperture.Widget : Gtk.Grid {
 
         videoscale.add_borders = true;
 
-        pipeline.add_many(this.convert, this.tee, q1, videoscale, sink);
+        pipeline.add_many(this.convert, this.tee, q1, videoscale, viewfinder_bin);
         this.convert.link_many(this.tee, q1, videoscale, sink);
 
         // Pick a camera
@@ -103,15 +107,6 @@ public class Aperture.Widget : Gtk.Grid {
             this.camera = devices.cameras.first().data;
         } else {
             state = NO_CAMERAS;
-        }
-
-        pipeline.set_state(PLAYING);
-    }
-
-    ~Widget() {
-        // Make sure the pipeline is in NULL state before it is finalized!
-        if (this.source != null) {
-            pipeline.set_state(NULL);
         }
     }
 
@@ -227,14 +222,6 @@ public class Aperture.Widget : Gtk.Grid {
     }
 
 
-    private bool on_configure_event() {
-        Gtk.Allocation alloc;
-        this.viewfinder.get_allocation(out alloc);
-
-        return false;
-    }
-
-
     private bool _on_bus_message_async(Gst.Bus bus, Gst.Message msg) {
         switch (msg.type) {
         case ERROR:
@@ -282,6 +269,14 @@ public class Aperture.Widget : Gtk.Grid {
             _set_error("Failed to create element %s".printf(factory));
         }
         return element;
+    }
+
+    private void on_realize() {
+        this.pipeline.set_state(PLAYING);
+    }
+
+    private void on_unrealize() {
+        this.pipeline.set_state(NULL);
     }
 }
 

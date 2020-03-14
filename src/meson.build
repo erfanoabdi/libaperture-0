@@ -5,9 +5,6 @@ libaperture_gir_name = 'Aperture-@0@'.format(aperture_api_version)
 libaperture_pc_name = 'aperture-@0@'.format(aperture_api_version)
 
 libaperture_sources = files(
-  'gst-widgets/aperture-gst-widget.vala',
-  'gst-widgets/gst-widget-clutter.vala',
-
   'aperture.vala',
   'aperture-audio-profile.vala',
   'aperture-camera.vala',
@@ -17,6 +14,7 @@ libaperture_sources = files(
   'aperture-gallery.vala',
   'aperture-gallery-button.vala',
   'aperture-gallery-page.vala',
+  'aperture-gst-widget.vala',
   'aperture-microphone.vala',
   'aperture-shutter-button.vala',
   'aperture-tween.vala',

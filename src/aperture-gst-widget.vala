@@ -1,4 +1,4 @@
-/* gst-widget-clutter.vala
+/* gst-widget-gl.vala
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,25 +19,39 @@
  */
 
 
-private class Aperture.GstWidgetClutter : GtkClutter.Embed, GstWidget {
-    private Clutter.Actor actor;
-    private ClutterGst.Aspectratio content;
+private class Aperture.GstWidget : Gtk.Bin {
+    private Gst.Bin bin;
+    private dynamic Gst.Element sink;
+    private Gst.Element? glupload;
 
 
     construct {
-        this.actor = new Clutter.Actor();
-        this.content = new ClutterGst.Aspectratio();
-        this.content.paint_borders = true;
-        this.actor.content = this.content;
+        bin = new Gst.Bin(null);
 
-        var stage = this.get_stage();
-        stage.background_color = Clutter.Color.get_static(BLACK);
-        stage.layout_manager = new Clutter.BinLayout(FILL, FILL);
-        stage.add_child(this.actor);
+        sink = Gst.ElementFactory.make("gtkglsink", null);
+        if (sink != null) {
+            glupload = Gst.ElementFactory.make("glupload", null);
+            bin.add_many(glupload, sink);
+            glupload.link(sink);
+        } else {
+            sink = Gst.ElementFactory.make("gtksink", null);
+            bin.add(sink);
+        }
+
+        if (this.sink == null) {
+            critical("Could not create gtkglsink or gtksink to display camera feed!");
+        }
+
+        Gtk.Widget widget = sink.widget;
+        this.add(widget);
     }
 
 
     public Gst.Element get_sink() {
-        return this.content.sink;
+        return glupload ?? sink;
+    }
+
+    public Gst.Bin get_bin() {
+        return bin;
     }
 }
