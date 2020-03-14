@@ -21,9 +21,6 @@
 namespace Aperture {
     private bool initialized = false;
 
-    [CCode (cname="XInitThreads")]
-    private extern void XInitThreads();
-
     /**
      * Initializes the Aperture library, along with several libraries it
      * depends on. This should be done before any part of the API is used.
@@ -38,10 +35,7 @@ namespace Aperture {
             return;
         }
 
-        XInitThreads();
         Gst.init(ref args);
-        GtkClutter.init(ref args);
-        ClutterGst.init(ref args);
 
         initialized = true;
     }

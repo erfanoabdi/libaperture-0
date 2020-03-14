@@ -43,6 +43,7 @@ private class Aperture.GstWidget : Gtk.Bin {
         }
 
         Gtk.Widget widget = sink.widget;
+        widget.visible = true;
         this.add(widget);
     }
 
