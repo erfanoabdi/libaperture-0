@@ -58,6 +58,8 @@ namespace Aperture {
         }
     }
 
+    private extern bool is_wayland();
+
     /**
      * A debugging tool that prints a #GstStructure to stdout in an easily
      * readable format.

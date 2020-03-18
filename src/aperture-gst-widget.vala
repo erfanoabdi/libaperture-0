@@ -28,7 +28,12 @@ private class Aperture.GstWidget : Gtk.Bin {
     construct {
         bin = new Gst.Bin(null);
 
-        sink = Gst.ElementFactory.make("gtkglsink", null);
+        // Do not use gtkglsink on Wayland, it is broken.
+        // See https://gitlab.freedesktop.org/gstreamer/gst-plugins-good/issues/671
+        if (!is_wayland()) {
+            sink = Gst.ElementFactory.make("gtkglsink", null);
+        }
+
         if (sink != null) {
             glupload = Gst.ElementFactory.make("glupload", null);
             bin.add_many(glupload, sink);
