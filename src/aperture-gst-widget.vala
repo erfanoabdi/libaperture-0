@@ -26,21 +26,27 @@ private class Aperture.GstWidget : Gtk.Bin {
 
 
     construct {
-        bin = new Gst.Bin(null);
-
         // Do not use gtkglsink on Wayland, it is broken.
         // See https://gitlab.freedesktop.org/gstreamer/gst-plugins-good/issues/671
-        if (!is_wayland()) {
+        // Actually, don't use it at all. Resizing it causes a pipeline error
+        // in the camerabin.
+        /*if (!is_wayland()) {
             sink = Gst.ElementFactory.make("gtkglsink", null);
-        }
+        }*/
 
         if (sink != null) {
+            bin = new Gst.Bin(null);
+
             glupload = Gst.ElementFactory.make("glupload", null);
             bin.add_many(glupload, sink);
             glupload.link(sink);
+
+            var pad = (glupload ?? sink).get_static_pad("sink");
+            var ghost_pad = new Gst.GhostPad("sink", pad);
+            ghost_pad.set_active(true);
+            bin.add_pad(ghost_pad);
         } else {
             sink = Gst.ElementFactory.make("gtksink", null);
-            bin.add(sink);
         }
 
         if (this.sink == null) {
@@ -54,10 +60,6 @@ private class Aperture.GstWidget : Gtk.Bin {
 
 
     public Gst.Element get_sink() {
-        return glupload ?? sink;
-    }
-
-    public Gst.Bin get_bin() {
-        return bin;
+        return ((Gst.Element) bin) ?? sink;
     }
 }

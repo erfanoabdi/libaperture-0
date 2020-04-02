@@ -24,6 +24,12 @@
 #include <handy.h>
 
 
+typedef struct {
+  ApertureWidget *widget;
+  ApertureShutterButton *shutter;
+  ApertureGallery *gallery;
+} UI;
+
 void
 on_camera_changed (ApertureCameraSwitcherButton *switcher,
                    ApertureCamera *camera,
@@ -34,11 +40,43 @@ on_camera_changed (ApertureCameraSwitcherButton *switcher,
   aperture_widget_set_camera (widget, camera);
 }
 
-void
-on_take_picture (GtkButton      *button,
-                 ApertureWidget *widget)
+gchar *
+get_file(GUserDirectory user_dir, gchar *extension)
 {
-  aperture_widget_take_picture (widget);
+  GDateTime *date = g_date_time_new_now_local ();
+  const gchar *dir = g_get_user_special_dir (user_dir);
+  gchar *filename = g_date_time_format (date, "%F_%T");
+
+  gchar *path = g_strconcat (dir, "/", filename, ".", extension, NULL);
+
+  for (int i = 1; g_file_test (path, G_FILE_TEST_EXISTS); i ++) {
+    g_free (path);
+    path = g_strdup_printf ("%s/%s_%d.jpg", dir, filename, i);
+  }
+
+  g_date_time_unref (date);
+  g_free (filename);
+
+  return path;
+}
+
+void
+on_take_picture (GtkButton *button,
+                 UI        *ui)
+{
+  /*gchar *path = get_file (G_USER_DIRECTORY_PICTURES, "jpg");
+  aperture_widget_take_picture (ui->widget, path);
+  g_free (path);*/
+
+  if (aperture_widget_get_state (ui->widget) == APERTURE_STATE_RECORDING) {
+    aperture_shutter_button_set_mode (ui->shutter, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+    aperture_widget_stop_recording (ui->widget);
+  } else {
+    aperture_shutter_button_set_mode (ui->shutter, APERTURE_SHUTTER_BUTTON_MODE_RECORDING);
+    gchar *path = get_file (G_USER_DIRECTORY_VIDEOS, "mkv");
+    aperture_widget_start_recording (ui->widget, path);
+    g_free (path);
+  }
 }
 
 void
@@ -47,31 +85,14 @@ on_picture_taken (ApertureWidget  *widget,
                   ApertureGallery *gallery)
 {
   GError *error = NULL;
-  const gchar *pictures;
-  GDateTime *date;
-  gchar *filename;
-  gchar *path = NULL;
+  gchar *path = get_file (G_USER_DIRECTORY_PICTURES, "jpg");
 
-  date = g_date_time_new_now_local ();
-  pictures = g_get_user_special_dir (G_USER_DIRECTORY_PICTURES);
-  filename = g_date_time_format (date, "%F_%T");
-
-  path = g_strconcat (pictures, "/", filename, ".jpg", NULL);
-
-  for (int i = 1; g_file_test (path, G_FILE_TEST_EXISTS); i ++) {
-    g_free (path);
-    path = g_strdup_printf ("%s/%s_%d.jpg", pictures, filename, i);
-  }
-
-  //gdk_pixbuf_save (pixbuf, path, "jpeg", &error, "quality", "100", NULL);
   aperture_gallery_add_image (gallery, pixbuf);
 
   if (error) {
     g_error_free (error);
   }
 
-  g_date_time_unref (date);
-  g_free (filename);
   g_free (path);
 }
 
@@ -89,14 +110,12 @@ int
 main (int argc, char **argv)
 {
   GtkWidget *window;
-  ApertureWidget *widget;
   ApertureCameraSwitcherButton *switcher;
   GtkWidget *grid;
-  ApertureShutterButton *shutter;
-  ApertureGallery *gallery;
   ApertureGalleryButton *gallery_button;
   GtkWidget *button2;
   GtkWidget *headerbar;
+  UI ui;
   const gchar *desktop;
 
   desktop = g_get_user_special_dir (G_USER_DIRECTORY_DESKTOP);
@@ -109,39 +128,39 @@ main (int argc, char **argv)
   grid = gtk_grid_new ();
   switcher = aperture_camera_switcher_button_new ();
   gtk_widget_set_sensitive (GTK_WIDGET (switcher), TRUE);
-  shutter = aperture_shutter_button_new ();
+  ui.shutter = aperture_shutter_button_new ();
   button2 = gtk_button_new_with_label ("Test");
-  gallery = aperture_gallery_new ();
+  ui.gallery = aperture_gallery_new ();
   gallery_button = aperture_gallery_button_new ();
-  widget = aperture_widget_new ();
+  ui.widget = aperture_widget_new ();
 
-  gtk_widget_set_size_request (GTK_WIDGET (widget), 200, 200);
-  gtk_widget_set_size_request (GTK_WIDGET (shutter), 44, 44);
+  gtk_widget_set_size_request (GTK_WIDGET (ui.widget), 200, 200);
+  gtk_widget_set_size_request (GTK_WIDGET (ui.shutter), 44, 44);
   gtk_widget_set_size_request (GTK_WIDGET (gallery_button), 56, 56);
-  aperture_shutter_button_set_mode (shutter, APERTURE_SHUTTER_BUTTON_MODE_PICTURE);
-  aperture_shutter_button_set_countdown (shutter, 5);
-  g_object_set (shutter, "margin", 12, NULL);
-  aperture_gallery_button_set_gallery (gallery_button, gallery);
+  aperture_shutter_button_set_mode (ui.shutter, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+  aperture_shutter_button_set_countdown (ui.shutter, 5);
+  g_object_set (ui.shutter, "margin", 12, NULL);
+  aperture_gallery_button_set_gallery (gallery_button, ui.gallery);
   gtk_widget_set_halign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
   gtk_widget_set_valign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
 
-  g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), widget);
-  g_signal_connect (shutter, "clicked", G_CALLBACK (on_take_picture), widget);
-  g_signal_connect (widget, "picture-taken", G_CALLBACK (on_picture_taken), gallery);
+  g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), ui.widget);
+  g_signal_connect (ui.shutter, "clicked", G_CALLBACK (on_take_picture), &ui);
+  g_signal_connect (ui.widget, "picture-taken", G_CALLBACK (on_picture_taken), ui.gallery);
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
-  g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), shutter);
+  g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), ui.shutter);
 
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (widget), 0, 0, 3, 1);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (ui.widget), 0, 0, 3, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 0, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 1, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery_button), 2, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery), 3, 0, 1, 2);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (ui.gallery), 3, 0, 1, 2);
   gtk_grid_set_column_homogeneous (GTK_GRID (grid), TRUE);
   gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (grid));
 
   headerbar = hdy_header_bar_new ();
   hdy_header_bar_set_show_close_button (HDY_HEADER_BAR (headerbar), TRUE);
-  hdy_header_bar_set_custom_title (HDY_HEADER_BAR (headerbar), GTK_WIDGET (shutter));
+  hdy_header_bar_set_custom_title (HDY_HEADER_BAR (headerbar), GTK_WIDGET (ui.shutter));
   gtk_window_set_titlebar (GTK_WINDOW (window), headerbar);
 
   gtk_widget_show_all (window);

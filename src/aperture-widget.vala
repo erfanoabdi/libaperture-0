@@ -47,20 +47,23 @@ public class Aperture.Widget : Gtk.Grid {
 
 
     /**
-     * Emitted when a picture is taken by the user or by calling
-     * take_picture().
+     * Emitted when a picture is done being taken.
      */
     public signal void picture_taken(Gdk.Pixbuf pixbuf);
+
+
+    /**
+     * Emitted when a video is done being taken.
+     */
+    public signal void video_taken();
 
 
     // GTK WIDGETS
     private GstWidget viewfinder;
 
     // GST ELEMENTS
+    private dynamic Gst.Element camerabin;
     private Gst.Pipeline pipeline;
-    private Gst.Element source;
-    private Gst.Element convert;
-    private Gst.Element tee;
 
     private delegate void BusCallback(Gst.Message msg);
     private BusCallback finish_taking_picture;
@@ -75,8 +78,6 @@ public class Aperture.Widget : Gtk.Grid {
         this.viewfinder.expand = true;
         this.viewfinder.visible = true;
         this.attach(this.viewfinder, 0, 0);
-        var sink = this.viewfinder.get_sink();
-        var viewfinder_bin = this.viewfinder.get_bin();
 
         // Set up signals
         this.realize.connect(on_realize);
@@ -86,16 +87,10 @@ public class Aperture.Widget : Gtk.Grid {
         pipeline = new Gst.Pipeline(null);
         pipeline.get_bus().add_watch(Priority.DEFAULT, _on_bus_message_async);
 
-        // Create and connect all the elements
-        this.convert = create_element("videoconvert");
-        this.tee = create_element("tee");
-        Gst.Element q1 = create_element("queue");
-        dynamic Gst.Element videoscale = create_element("videoscale");
-
-        videoscale.add_borders = true;
-
-        pipeline.add_many(this.convert, this.tee, q1, videoscale, viewfinder_bin);
-        this.convert.link_many(this.tee, q1, videoscale, sink);
+        // Create the camerabin
+        camerabin = create_element("camerabin");
+        camerabin.viewfinder_sink = this.viewfinder.get_sink();
+        pipeline.add_many(camerabin);
 
         // Pick a camera
         var devices = DeviceManager.get_instance();
@@ -104,6 +99,7 @@ public class Aperture.Widget : Gtk.Grid {
         devices.camera_removed.connect(_on_camera_removed);
 
         if (devices.cameras.length() > 0) {
+            state = READY;
             this.camera = devices.cameras.first().data;
         } else {
             state = NO_CAMERAS;
@@ -112,74 +108,45 @@ public class Aperture.Widget : Gtk.Grid {
 
 
     /**
-     * Takes a picture.
+     * Takes a picture and saves it to a file.
      *
      * This may take a while. The resolution might be changed temporarily,
      * autofocusing might take place, etc. Basically everything you'd expect
      * to happen when you click the photo button on the camera app.
      *
-     * When the picture has been taken, the `picture_taken` signal will be
-     * emitted with the picture.
+     * When the picture has been taken and saved, ::picture_taken will be
+     * emitted.
      */
-    public void take_picture() {
-        this.debug_dump();
-        this.state = TAKING_PICTURE;
+    public void take_picture(string file)
+            requires (state == READY) {
 
-        Gst.Element q = create_element("queue");
-        Gst.Element convert = create_element("videoconvert");
-        dynamic Gst.Element pixbufsink = create_element("gdkpixbufsink");
+        state = TAKING_PICTURE;
 
-        // Not quite sure why this is needed, but if it's not there, you'll
-        // get errors when the elements are finalized, saying they're not
-        // in the NULL state (even though they were just set to NULL).
-        pixbufsink.set_locked_state(true);
-        convert.set_locked_state(true);
-        q.set_locked_state(true);
+        camerabin.mode = 1; // Image mode
+        camerabin.location = file;
+        Signal.emit_by_name(camerabin, "start-capture");
+    }
 
-        // Connect the elements
-        this.pipeline.add_many(q, convert, pixbufsink);
-        q.link_many(convert, pixbufsink);
+    /**
+     * Starts recording a video. The video will be saved to @file.
+     */
+    public void start_recording(string file)
+            requires (state == READY) {
 
-        Gst.Pad tee_src = this.tee.get_request_pad("src_%u");
-        Gst.Pad q_sink = q.get_static_pad("sink");
-        tee_src.link(q_sink);
+        state = RECORDING;
 
-        this.finish_taking_picture = (msg) => {
-            if (msg.src != pixbufsink) {
-                return;
-            }
+        camerabin.mode = 2; // Video mode
+        camerabin.location = file;
+        Signal.emit_by_name(camerabin, "start-capture");
+    }
 
-            if (msg.type != ELEMENT) {
-                return;
-            }
+    /**
+     * Stop recording video. ::video_taken will be emitted when this is done.
+     */
+    public void stop_recording()
+            requires (state == RECORDING) {
 
-            unowned Gst.Structure structure = msg.get_structure();
-            Gdk.Pixbuf pixbuf = (Gdk.Pixbuf) structure.get_value("pixbuf");
-
-            this.state = READY;
-
-            q.set_state(NULL);
-            convert.set_state(NULL);
-            pixbufsink.set_state(NULL);
-
-            pipeline.remove(q);
-            pipeline.remove(convert);
-            pipeline.remove(pixbufsink);
-
-            this.tee.release_request_pad(tee_src);
-
-            this.finish_taking_picture = null;
-
-            Idle.add(() => {
-                this.picture_taken(pixbuf);
-                return Source.REMOVE;
-            });
-        };
-
-        // Set the elements to playing
-        q.sync_state_with_parent();
-        convert.sync_state_with_parent();
-        pixbufsink.set_state(PLAYING);
+        Signal.emit_by_name(camerabin, "stop-capture");
     }
 
     /**
@@ -196,29 +163,20 @@ public class Aperture.Widget : Gtk.Grid {
     }
 
 
-    private void _set_camera(Camera new_device) {
-        var old_source = this.source;
-        var new_source = new_device.create_gstreamer_source();
+    private void _set_camera(Camera new_device)
+            // Cannot change camera while recording or taking picture
+            requires (state == READY) {
 
-        if (old_source != null) {
-            // Must set a different clock. Otherwise, when the old source
-            // is destroyed, its clock will freeze, freezing the pipeline
-            // with it
-            pipeline.set_clock(Gst.SystemClock.obtain());
-            old_source.set_state(NULL);
-            pipeline.remove(old_source);
+        dynamic Gst.Element wrapper = create_element("wrappercamerabinsrc");
+        wrapper.video_source = new_device.create_gstreamer_source();
+        camerabin.camera_source = wrapper;
+
+        // Must change camerabin to NULL and back to PLAYING for the change
+        // to take effect
+        camerabin.set_state(NULL);
+        if (viewfinder.get_realized()) {
+            camerabin.set_state(PLAYING);
         }
-
-        this.source = new_source;
-        pipeline.add(this.source);
-        this.source.link(this.convert);
-        this.source.sync_state_with_parent();
-
-        if (this.viewfinder.get_realized()) {
-            pipeline.set_state(PLAYING);
-        }
-
-        this.state = READY;
     }
 
 
@@ -235,6 +193,17 @@ public class Aperture.Widget : Gtk.Grid {
             debug_dump("libaperture-error");
 
             return true;
+        case ELEMENT:
+            if (msg.has_name("image-done")) {
+                on_finish_taking_picture.begin();
+                return true;
+            } else if (msg.has_name("video-done")) {
+                state = READY;
+                video_taken();
+                return true;
+            }
+
+            break;
         }
 
         if (this.finish_taking_picture != null) {
@@ -242,6 +211,20 @@ public class Aperture.Widget : Gtk.Grid {
         }
 
         return true;
+    }
+
+    private async void on_finish_taking_picture()
+            requires (state == TAKING_PICTURE) {
+        try {
+            var file = File.new_for_path(camerabin.location);
+            var stream = yield file.read_async();
+            var pixbuf = yield new Gdk.Pixbuf.from_stream_async(stream);
+
+            state = READY;
+            picture_taken(pixbuf);
+        } catch (Error e) {
+            _set_error("Could not take picture: " + e.message);
+        }
     }
 
     private void _on_camera_removed(Camera camera) {
