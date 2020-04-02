@@ -123,6 +123,12 @@ public class Aperture.GalleryButton : Gtk.Button {
         this.tween.start("size", 0, 0);
         this.tween["size"] = 1;
         this.queue_draw();
+
+        update_sensitive();
+    }
+
+    private void update_sensitive() {
+        this.sensitive = gallery != null && gallery.get_items().length() > 0;
     }
 
     private void on_gallery_changed(Gallery? old_gallery, Gallery? new_gallery) {
@@ -135,6 +141,7 @@ public class Aperture.GalleryButton : Gtk.Button {
         }
 
         this.queue_draw();
+        update_sensitive();
     }
 
     /*
