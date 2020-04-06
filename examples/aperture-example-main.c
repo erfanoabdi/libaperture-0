@@ -64,11 +64,11 @@ void
 on_take_picture (GtkButton *button,
                  UI        *ui)
 {
-  /*gchar *path = get_file (G_USER_DIRECTORY_PICTURES, "jpg");
+  gchar *path = get_file (G_USER_DIRECTORY_PICTURES, "jpg");
   aperture_widget_take_picture (ui->widget, path);
-  g_free (path);*/
+  g_free (path);
 
-  if (aperture_widget_get_state (ui->widget) == APERTURE_STATE_RECORDING) {
+  /*if (aperture_widget_get_state (ui->widget) == APERTURE_STATE_RECORDING) {
     aperture_shutter_button_set_mode (ui->shutter, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
     aperture_widget_stop_recording (ui->widget);
   } else {
@@ -76,7 +76,7 @@ on_take_picture (GtkButton *button,
     gchar *path = get_file (G_USER_DIRECTORY_VIDEOS, "mkv");
     aperture_widget_start_recording (ui->widget, path);
     g_free (path);
-  }
+  }*/
 }
 
 void
@@ -137,7 +137,7 @@ main (int argc, char **argv)
   gtk_widget_set_size_request (GTK_WIDGET (ui.widget), 200, 200);
   gtk_widget_set_size_request (GTK_WIDGET (ui.shutter), 44, 44);
   gtk_widget_set_size_request (GTK_WIDGET (gallery_button), 56, 56);
-  aperture_shutter_button_set_mode (ui.shutter, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
+  aperture_shutter_button_set_mode (ui.shutter, APERTURE_SHUTTER_BUTTON_MODE_PICTURE);
   aperture_shutter_button_set_countdown (ui.shutter, 5);
   g_object_set (ui.shutter, "margin", 12, NULL);
   aperture_gallery_button_set_gallery (gallery_button, ui.gallery);
@@ -150,11 +150,11 @@ main (int argc, char **argv)
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
   g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), ui.shutter);
 
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (ui.widget), 0, 0, 3, 1);
+  aperture_gallery_set_widget (ui.gallery, ui.widget);
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (ui.gallery), 0, 0, 3, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 0, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 1, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (gallery_button), 2, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (ui.gallery), 3, 0, 1, 2);
   gtk_grid_set_column_homogeneous (GTK_GRID (grid), TRUE);
   gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (grid));
 
