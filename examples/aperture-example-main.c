@@ -28,6 +28,7 @@ typedef struct {
   ApertureWidget *widget;
   ApertureShutterButton *shutter;
   ApertureGallery *gallery;
+  gboolean countdown_active;
 } UI;
 
 void
@@ -97,9 +98,14 @@ on_picture_taken (ApertureWidget  *widget,
 }
 
 static void
-on_test_clicked (GtkButton *button, ApertureShutterButton *shutter)
+on_test_clicked (GtkButton *button, UI *ui)
 {
-  aperture_shutter_button_start_countdown (shutter);
+  ui->countdown_active = !ui->countdown_active;
+  if (ui->countdown_active) {
+    aperture_shutter_button_start_countdown (ui->shutter);
+  } else {
+    aperture_shutter_button_stop_countdown (ui->shutter);
+  }
 }
 
 int
@@ -144,7 +150,7 @@ main (int argc, char **argv)
   g_signal_connect (ui.shutter, "clicked", G_CALLBACK (on_take_picture), &ui);
   g_signal_connect (ui.widget, "picture-taken", G_CALLBACK (on_picture_taken), ui.gallery);
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
-  g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), ui.shutter);
+  g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), &ui);
 
   aperture_gallery_set_widget (ui.gallery, ui.widget);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (ui.gallery), 0, 0, 3, 1);

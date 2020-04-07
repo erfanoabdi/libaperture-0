@@ -142,6 +142,8 @@ internal class Aperture.Tween {
             this.tick_callback_id = this.widget.add_tick_callback(this.tick_callback);
             this.callback_active = true;
         }
+
+        this.widget.queue_draw();
     }
 
     /**
