@@ -122,8 +122,8 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
         return this.pages.copy();
     }
 
-    public void add_child (Gtk.Builder builder, Object child, string? type) {
-        if (type == "widget") {
+    public void add_child(Gtk.Builder builder, Object child, string? type) {
+        if (type == "viewfinder") {
             assert(child is Aperture.Viewfinder);
             this.viewfinder = child as Aperture.Viewfinder;
             return;

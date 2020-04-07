@@ -150,15 +150,15 @@ public class Aperture.Viewfinder : Gtk.Grid {
     }
 
     /**
-     * Creates a graph of the #ApertureWidget's pipeline, for debugging.
+     * Creates a graph of the #ApertureViewfinder's pipeline, for debugging.
      *
      * The graph can be converted to an image using GraphViz's dot command,
-     * like this: `dot -Tpng -o aperture-widget.png aperture-widget.dot`
+     * like this: `dot -Tpng -o aperture-viewfinder.png aperture-viewfinder.dot`
      *
      * For this to work, the GST_DEBUG_DUMP_DOT_DIR environment variable must
      * be set to a directory path in which to place the file.
      */
-    public void debug_dump(string name="aperture-widget") {
+    public void debug_dump(string name="aperture-viewfinder") {
         Gst.Debug.bin_to_dot_file(this.pipeline, ALL, name);
     }
 
