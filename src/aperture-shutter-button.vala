@@ -26,7 +26,7 @@
  * video, active recording, etc. It is up to the application to manage these
  * modes and perform the right actions when the button is clicked.
  * #ApertureShutterButton is little more than a #GtkButton with custom drawing,
- * and it does not operate an #ApertureWidget automatically.
+ * and it does not operate an #ApertureViewfinder automatically.
  */
 public class Aperture.ShutterButton : Gtk.Button {
     private ShutterButtonMode _mode;

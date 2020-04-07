@@ -1,4 +1,4 @@
-/* aperture-widget.vala
+/* aperture-viewfinder.vala
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -23,7 +23,7 @@
  * A widget for displaying a camera feed and taking pictures and videos from
  * it.
  */
-public class Aperture.Widget : Gtk.Grid {
+public class Aperture.Viewfinder : Gtk.Grid {
     private Camera _camera;
     /**
      * The camera device that is currently being used.
@@ -41,7 +41,7 @@ public class Aperture.Widget : Gtk.Grid {
     }
 
     /**
-     * The loading state of the #ApertureWidget.
+     * The loading state of the #ApertureViewfinder.
      */
     public State state { get; set; default=State.LOADING; }
 
@@ -59,7 +59,7 @@ public class Aperture.Widget : Gtk.Grid {
 
 
     // GTK WIDGETS
-    private GstWidget viewfinder;
+    private GstWidget gst_widget;
 
     // GST ELEMENTS
     private dynamic Gst.Element camerabin;
@@ -73,11 +73,11 @@ public class Aperture.Widget : Gtk.Grid {
         // Make sure Aperture is initialized
         init_check();
 
-        // Create the viewfinder
-        this.viewfinder = new GstWidget();
-        this.viewfinder.expand = true;
-        this.viewfinder.visible = true;
-        this.attach(this.viewfinder, 0, 0);
+        // Create the GstWidget for displaying the viewfinder feed
+        this.gst_widget = new GstWidget();
+        this.gst_widget.expand = true;
+        this.gst_widget.visible = true;
+        this.attach(this.gst_widget, 0, 0);
 
         // Set up signals
         this.realize.connect(on_realize);
@@ -89,7 +89,7 @@ public class Aperture.Widget : Gtk.Grid {
 
         // Create the camerabin
         camerabin = create_element("camerabin");
-        camerabin.viewfinder_sink = this.viewfinder.get_sink();
+        camerabin.viewfinder_sink = this.gst_widget.get_sink();
         pipeline.add_many(camerabin);
 
         // Pick a camera
@@ -174,7 +174,7 @@ public class Aperture.Widget : Gtk.Grid {
         // Must change camerabin to NULL and back to PLAYING for the change
         // to take effect
         camerabin.set_state(NULL);
-        if (viewfinder.get_realized()) {
+        if (gst_widget.get_realized()) {
             camerabin.set_state(PLAYING);
         }
     }
@@ -265,31 +265,31 @@ public class Aperture.Widget : Gtk.Grid {
 
 
 /**
- * The state of an #ApertureWidget.
+ * The state of an #ApertureViewfinder.
  */
 public enum Aperture.State {
     /**
-     * The #ApertureWidget is still loading.
+     * The #ApertureViewfinder is still loading.
      */
     LOADING,
 
     /**
-     * The #ApertureWidget is ready to be used.
+     * The #ApertureViewfinder is ready to be used.
      */
     READY,
 
     /**
-     * The #ApertureWidget is recording a video.
+     * The #ApertureViewfinder is recording a video.
      */
     RECORDING,
 
     /**
-     * The #ApertureWidget is taking a picture.
+     * The #ApertureViewfinder is taking a picture.
      */
     TAKING_PICTURE,
 
     /**
-     * The #ApertureWidget could not find any cameras to use.
+     * The #ApertureViewfinder could not find any cameras to use.
      */
     NO_CAMERAS,
 

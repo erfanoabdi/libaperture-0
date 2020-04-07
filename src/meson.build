@@ -20,7 +20,7 @@ libaperture_sources = files(
   'aperture-shutter-button.vala',
   'aperture-tween.vala',
   'aperture-video-profile.vala',
-  'aperture-widget.vala',
+  'aperture-viewfinder.vala',
 )
 
 libaperture_vala_flags = [

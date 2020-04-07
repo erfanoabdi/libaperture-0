@@ -25,7 +25,7 @@
 
 
 typedef struct {
-  ApertureWidget *widget;
+  ApertureViewfinder *viewfinder;
   ApertureShutterButton *shutter;
   ApertureGallery *gallery;
   gboolean countdown_active;
@@ -33,12 +33,10 @@ typedef struct {
 
 void
 on_camera_changed (ApertureCameraSwitcherButton *switcher,
-                   ApertureCamera *camera,
-                   gpointer user_data)
+                   ApertureCamera               *camera,
+                   ApertureViewfinder           *viewfinder)
 {
-  ApertureWidget *widget = user_data;
-
-  aperture_widget_set_camera (widget, camera);
+  aperture_viewfinder_set_camera (viewfinder, camera);
 }
 
 gchar *
@@ -66,24 +64,24 @@ on_take_picture (GtkButton *button,
                  UI        *ui)
 {
   gchar *path = get_file (G_USER_DIRECTORY_PICTURES, "jpg");
-  aperture_widget_take_picture (ui->widget, path);
+  aperture_viewfinder_take_picture (ui->viewfinder, path);
   g_free (path);
 
-  /*if (aperture_widget_get_state (ui->widget) == APERTURE_STATE_RECORDING) {
+  /*if (aperture_viewfinder_get_state (ui->viewfinder) == APERTURE_STATE_RECORDING) {
     aperture_shutter_button_set_mode (ui->shutter, APERTURE_SHUTTER_BUTTON_MODE_VIDEO);
-    aperture_widget_stop_recording (ui->widget);
+    aperture_viewfinder_stop_recording (ui->viewfinder);
   } else {
     aperture_shutter_button_set_mode (ui->shutter, APERTURE_SHUTTER_BUTTON_MODE_RECORDING);
     gchar *path = get_file (G_USER_DIRECTORY_VIDEOS, "mkv");
-    aperture_widget_start_recording (ui->widget, path);
+    aperture_viewfinder_start_recording (ui->viewfinder, path);
     g_free (path);
   }*/
 }
 
 void
-on_picture_taken (ApertureWidget  *widget,
-                  GdkPixbuf       *pixbuf,
-                  ApertureGallery *gallery)
+on_picture_taken (ApertureViewfinder *viewfinder,
+                  GdkPixbuf          *pixbuf,
+                  ApertureGallery    *gallery)
 {
   GError *error = NULL;
   gchar *path = get_file (G_USER_DIRECTORY_PICTURES, "jpg");
@@ -134,9 +132,9 @@ main (int argc, char **argv)
   button2 = gtk_button_new_with_label ("Test");
   ui.gallery = aperture_gallery_new ();
   gallery_button = aperture_gallery_button_new ();
-  ui.widget = aperture_widget_new ();
+  ui.viewfinder = aperture_viewfinder_new ();
 
-  gtk_widget_set_size_request (GTK_WIDGET (ui.widget), 200, 200);
+  gtk_widget_set_size_request (GTK_WIDGET (ui.viewfinder), 200, 200);
   gtk_widget_set_size_request (GTK_WIDGET (ui.shutter), 44, 44);
   gtk_widget_set_size_request (GTK_WIDGET (gallery_button), 56, 56);
   aperture_shutter_button_set_mode (ui.shutter, APERTURE_SHUTTER_BUTTON_MODE_PICTURE);
@@ -146,13 +144,13 @@ main (int argc, char **argv)
   gtk_widget_set_halign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
   gtk_widget_set_valign (GTK_WIDGET (gallery_button), GTK_ALIGN_CENTER);
 
-  g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), ui.widget);
+  g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), ui.viewfinder);
   g_signal_connect (ui.shutter, "clicked", G_CALLBACK (on_take_picture), &ui);
-  g_signal_connect (ui.widget, "picture-taken", G_CALLBACK (on_picture_taken), ui.gallery);
+  g_signal_connect (ui.viewfinder, "picture-taken", G_CALLBACK (on_picture_taken), ui.gallery);
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
   g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), &ui);
 
-  aperture_gallery_set_widget (ui.gallery, ui.widget);
+  aperture_gallery_set_viewfinder (ui.gallery, ui.viewfinder);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (ui.gallery), 0, 0, 3, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (button2), 0, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (switcher), 1, 1, 1, 1);

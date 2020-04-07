@@ -29,38 +29,38 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
 
     private List<GalleryPage> pages;
 
-    private Aperture.Widget _widget;
-    public Aperture.Widget widget {
-        get { return this._widget; }
+    private Aperture.Viewfinder _viewfinder;
+    public Aperture.Viewfinder viewfinder {
+        get { return this._viewfinder; }
         set {
-            if (value == this.widget) {
+            if (value == this.viewfinder) {
                 return;
             }
 
-            if (this.widget != null) {
-                this.paginator.remove(this.widget);
+            if (this.viewfinder != null) {
+                this.paginator.remove(this.viewfinder);
             }
 
-            this._widget = value;
+            this._viewfinder = value;
 
-            if (this.widget != null) {
-                this.paginator.prepend(this.widget);
-                this.widget.expand = true;
+            if (this.viewfinder != null) {
+                this.paginator.prepend(this.viewfinder);
+                this.viewfinder.expand = true;
             }
 
-            this.notify_property("is-widget-visible");
+            this.notify_property("is-viewfinder-visible");
         }
     }
 
-    public bool is_widget_visible {
+    public bool is_viewfinder_visible {
         get {
-            return this.widget != null && this.paginator.position < 1;
+            return this.viewfinder != null && this.paginator.position < 1;
         }
     }
 
     public double progress {
         get {
-            if (this.widget == null) {
+            if (this.viewfinder == null) {
                 return 1;
             }
 
@@ -73,14 +73,14 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
         this.paginator.visible = true;
         this.paginator.notify["position"].connect(() => {
             this.notify_property("progress");
-            this.notify_property("is-widget-visible");
+            this.notify_property("is-viewfinder-visible");
         });
         this.add(this.paginator);
     }
 
     public void open() {
-        if (this.widget == null) {
-            warning("Can't open the gallery without widget.");
+        if (this.viewfinder == null) {
+            warning("Can't open the gallery without viewfinder.");
             return;
         }
 
@@ -92,12 +92,12 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
     }
 
     public void close() {
-        if (this.widget == null) {
-            warning("Can't close the gallery without widget.");
+        if (this.viewfinder == null) {
+            warning("Can't close the gallery without viewfinder.");
             return;
         }
 
-        this.paginator.scroll_to(widget);
+        this.paginator.scroll_to(viewfinder);
     }
 
     /**
@@ -109,7 +109,7 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
         page.expand = true;
 
         this.pages.prepend(page);
-        this.paginator.insert(page, this.widget != null ? 1 : 0);
+        this.paginator.insert(page, this.viewfinder != null ? 1 : 0);
         this.item_added(page);
     }
 
@@ -119,13 +119,13 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
      * Do not modify the returned list.
      */
     public List<weak GalleryPage> get_items() {
-        return this.pages.copy ();
+        return this.pages.copy();
     }
 
     public void add_child (Gtk.Builder builder, Object child, string? type) {
         if (type == "widget") {
-            assert (child is Aperture.Widget);
-            this.widget = child as Aperture.Widget;
+            assert(child is Aperture.Viewfinder);
+            this.viewfinder = child as Aperture.Viewfinder;
             return;
         }
 
