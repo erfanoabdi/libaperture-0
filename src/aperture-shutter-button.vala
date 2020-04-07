@@ -52,9 +52,9 @@ public class Aperture.ShutterButton : Gtk.Button {
     }
 
     /**
-     * The duration of the countdown timer, or 0 if there is no countdown.
+     * The duration of the countdown timer in seconds.
      *
-     * If a countdown is active, it will not be affected.
+     * Changes will take effect the next time a countdown is started.
      */
     public int countdown { get; set; default=0; }
 
@@ -77,6 +77,26 @@ public class Aperture.ShutterButton : Gtk.Button {
     }
 
 
+    /**
+     * Begins the countdown animation.
+     *
+     * Use the :countdown property to set the duration of this
+     *
+     * Note that ShutterButton provides only the animation, not timer
+     * functionality.
+     */
+    public void start_countdown() {
+        this.tween.start("countdown", 0, this.countdown * 1000);
+    }
+
+    /**
+     * Resets the countdown animation.
+     */
+    public void stop_countdown() {
+        this.tween.start("countdown", 1, 0);
+    }
+
+
     private void _set_mode(ShutterButtonMode mode) {
         if (mode == PICTURE) {
             this.tween["mode"] = 1;
@@ -90,10 +110,6 @@ public class Aperture.ShutterButton : Gtk.Button {
             this.tween["mode"] = 0;
             this.tween["record"] = 1;
             this.tween.start("countdown", 1, 0);
-        } else if (mode == COUNTDOWN) {
-            this.tween["mode"] = 1;
-            this.tween["record"] = 0;
-            this.tween.start("countdown", 0, this.countdown * 1000);
         }
     }
 
@@ -173,9 +189,4 @@ public enum Aperture.ShutterButtonMode {
      * The inside of the button is a red square.
      */
     RECORDING,
-
-    /**
-     * A countdown is running.
-     */
-    COUNTDOWN,
 }

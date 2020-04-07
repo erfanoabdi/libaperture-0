@@ -99,11 +99,7 @@ on_picture_taken (ApertureWidget  *widget,
 static void
 on_test_clicked (GtkButton *button, ApertureShutterButton *shutter)
 {
-  if (aperture_shutter_button_get_mode (shutter) == APERTURE_SHUTTER_BUTTON_MODE_COUNTDOWN) {
-    aperture_shutter_button_set_mode (shutter, APERTURE_SHUTTER_BUTTON_MODE_PICTURE);
-  } else {
-    aperture_shutter_button_set_mode (shutter, APERTURE_SHUTTER_BUTTON_MODE_COUNTDOWN);
-  }
+  aperture_shutter_button_start_countdown (shutter);
 }
 
 int
