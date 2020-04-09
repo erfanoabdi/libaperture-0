@@ -101,6 +101,36 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
     }
 
     /**
+     * Scrolls the carousel forward (toward the viewfinder and newer pages).
+     */
+    public bool scroll_forward() {
+        int position = (int) this.carousel.position;
+        if (position <= 0) {
+            return false;
+        }
+
+        var children = this.carousel.get_children();
+        this.carousel.scroll_to(children.nth_data(position - 1));
+        return true;
+    }
+
+    /**
+     * Scrolls the carousel backward (away from the viewfinder, toward older
+     * pages).
+     */
+    public bool scroll_backward() {
+        int position = (int) this.carousel.position;
+        var children = this.carousel.get_children();
+
+        if (position >= children.length() - 1) {
+            return false;
+        }
+
+        this.carousel.scroll_to(children.nth_data(position + 1));
+        return true;
+    }
+
+    /**
      * Adds an image to the gallery.
      */
     public void add_image(Gdk.Pixbuf pixbuf) {
