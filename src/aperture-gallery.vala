@@ -20,12 +20,12 @@
 
 
 /**
- * A widget that displays images and videos in a #HdyPaginator.
+ * A widget that displays images and videos in a #HdyCarousel.
  */
 public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
     public signal void item_added(GalleryPage thumbnail);
 
-    private Hdy.Paginator paginator;
+    private Hdy.Carousel carousel;
 
     private List<GalleryPage> pages;
 
@@ -38,13 +38,13 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
             }
 
             if (this.viewfinder != null) {
-                this.paginator.remove(this.viewfinder);
+                this.carousel.remove(this.viewfinder);
             }
 
             this._viewfinder = value;
 
             if (this.viewfinder != null) {
-                this.paginator.prepend(this.viewfinder);
+                this.carousel.prepend(this.viewfinder);
                 this.viewfinder.expand = true;
             }
 
@@ -54,7 +54,7 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
 
     public bool is_viewfinder_visible {
         get {
-            return this.viewfinder != null && this.paginator.position < 1;
+            return this.viewfinder != null && this.carousel.position < 1;
         }
     }
 
@@ -64,18 +64,18 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
                 return 1;
             }
 
-            return this.paginator.position.clamp(0, 1);
+            return this.carousel.position.clamp(0, 1);
         }
     }
 
     construct {
-        this.paginator = new Hdy.Paginator();
-        this.paginator.visible = true;
-        this.paginator.notify["position"].connect(() => {
+        this.carousel = new Hdy.Carousel();
+        this.carousel.visible = true;
+        this.carousel.notify["position"].connect(() => {
             this.notify_property("progress");
             this.notify_property("is-viewfinder-visible");
         });
-        this.add(this.paginator);
+        this.add(this.carousel);
     }
 
     public void open() {
@@ -88,7 +88,7 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
         if (items.length() < 1)
             return;
 
-        this.paginator.scroll_to(items.first().data);
+        this.carousel.scroll_to(items.first().data);
     }
 
     public void close() {
@@ -97,7 +97,7 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
             return;
         }
 
-        this.paginator.scroll_to(viewfinder);
+        this.carousel.scroll_to(viewfinder);
     }
 
     /**
@@ -109,7 +109,7 @@ public class Aperture.Gallery : Gtk.Bin, Gtk.Buildable {
         page.expand = true;
 
         this.pages.prepend(page);
-        this.paginator.insert(page, this.viewfinder != null ? 1 : 0);
+        this.carousel.insert(page, this.viewfinder != null ? 1 : 0);
         this.item_added(page);
     }
 
