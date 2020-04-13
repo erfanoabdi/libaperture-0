@@ -28,6 +28,17 @@ public class Aperture.Microphone : Device {
     }
 
 
+    public override int get_index() {
+        unowned List<Microphone> devices = DeviceManager.get_instance().microphones;
+        for (uint i = 0, n = devices.length(); i < n; i ++) {
+            if (devices.nth_data(i) == this) {
+                return (int) i;
+            }
+        }
+        return -1;
+    }
+
+
     /**
      * Gets the audio profiles this device is capable of providing.
      *

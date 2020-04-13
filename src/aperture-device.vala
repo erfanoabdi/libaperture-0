@@ -44,6 +44,14 @@ public abstract class Aperture.Device : Object {
 
 
     /**
+     * Returns the index of the device in the DeviceManager's list. This may
+     * change from time to time as devices are added or removed. Indexes are
+     * only unique among the device type (camera or microphone).
+     */
+    public abstract int get_index();
+
+
+    /**
      * Creates a GStreamer source element that provides input from this device
      * to a pipeline.
      */

@@ -28,6 +28,17 @@ public class Aperture.Camera : Device {
     }
 
 
+    public override int get_index() {
+        unowned List<Camera> devices = DeviceManager.get_instance().cameras;
+        for (uint i = 0, n = devices.length(); i < n; i ++) {
+            if (devices.nth_data(i) == this) {
+                return (int) i;
+            }
+        }
+        return -1;
+    }
+
+
     /**
      * Gets the video profiles that the camera is able to provide.
      *
