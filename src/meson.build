@@ -23,8 +23,10 @@ libaperture_sources = files(
   'aperture-viewfinder.vala',
 )
 
+# FIXME Disable --disable-since-check after libhandy 1.0 is released
 libaperture_vala_flags = [
   '--includedir', meson.project_name(),
+  '--disable-since-check',
 ]
 
 libaperture_c_flags = [
