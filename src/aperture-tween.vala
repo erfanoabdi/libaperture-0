@@ -37,7 +37,7 @@
  * to start an animation. In this case, :duration will be used as the
  * duration.
  */
-internal class Aperture.Tween {
+public class Aperture.Tween {
     private struct TweenVal {
         int64 start;
         int64 duration;
@@ -73,6 +73,19 @@ internal class Aperture.Tween {
      * Default duration, in milliseconds.
      */
     public int64 duration { get; set; default=125; }
+
+
+    /**
+     * If this is not null, it will be called on tick callbacks rather than
+     * the default, which calls Gtk.Widget.queue_redraw().
+     *
+     * This is useful, for example, in containers that need to queue a resize
+     * rather than a redraw.
+     *
+     * The return value of the callback will be ignored. #ApertureTween
+     * determines when the tick callback is no longer needed.
+     */
+    public weak Gtk.TickCallback custom_callback { get; set; }
 
 
     private Gee.HashMap<string, TweenVal?> map;
@@ -139,7 +152,7 @@ internal class Aperture.Tween {
         this.map[name] = val;
 
         if (this.is_active() && !this.callback_active) {
-            this.tick_callback_id = this.widget.add_tick_callback(this.tick_callback);
+            this.tick_callback_id = this.widget.add_tick_callback(on_tick_callback);
             this.callback_active = true;
         }
 
@@ -175,8 +188,12 @@ internal class Aperture.Tween {
     }
 
 
-    private bool tick_callback(Gtk.Widget widget, Gdk.FrameClock clock) {
-        this.widget.queue_draw();
+    private bool on_tick_callback(Gtk.Widget widget, Gdk.FrameClock clock) {
+        if (custom_callback != null) {
+            custom_callback(widget, clock);
+        } else {
+            this.widget.queue_draw();
+        }
 
         if (!is_active()) {
             this.callback_active = false;
