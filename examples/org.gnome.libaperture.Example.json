@@ -40,6 +40,50 @@
             ]
         },
         {
+            "name": "gst-plugins-bad",
+            "buildsystem": "meson",
+            "config-opts": [
+                "--auto-features=disabled",
+                "-Dzbar=enabled"
+            ],
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-bad",
+                    "branch": "1.16",
+                    "commit": "fe021e5c738dc946b4fb2531edcbeee923884975"
+                }
+            ],
+            "modules": [{
+                "name": "zbar",
+                "config-opts": [
+                    "--without-qt",
+                    "--without-gtk",
+                    "--without-xv",
+                    "--without-imagemagick",
+                    "--disable-video",
+                    "--without-java",
+                    "--with-python2=no",
+                    "--with-doc=no",
+                    "--with-introspection=no"
+                ],
+                "sources": [{
+                        "type": "git",
+                        "url": "git://git.linuxtv.org/zbar.git",
+                        "commit": "14900c67eccfb97e152063296f20cd32aa787578"
+                    },
+                    {
+                        "type": "script",
+                        "dest-filename": "autogen.sh",
+                        "commands": [
+                            "autoreconf -vfi -W none"
+                        ]
+                    }
+                ]
+            }]
+
+        },
+        {
             "name" : "libaperture",
             "builddir" : true,
             "buildsystem" : "meson",

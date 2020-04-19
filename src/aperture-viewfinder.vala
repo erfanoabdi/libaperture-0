@@ -45,11 +45,49 @@ public class Aperture.Viewfinder : Gtk.Grid {
      */
     public State state { get; set; default=State.LOADING; }
 
+    private Pipeline.ZBar? zbar_branch = null;
+    /**
+     * Whether the #ApertureViewfinder should detect barcodes.
+     *
+     * When a barcode is detected, the ::barcode-detected signal will be
+     * emitted.
+     *
+     * This only works if barcode detection is enabled. See
+     * aperture_barcode_detection_enabled().
+     */
+    public bool detect_barcodes {
+        get {
+            return zbar_branch != null;
+        }
+        set {
+            if (detect_barcodes == value) {
+                return;
+            }
+
+            if (value) {
+                if (barcode_detection_enabled()) {
+                    zbar_branch = new Pipeline.ZBar();
+                    tee.add_branch(zbar_branch);
+                }
+            } else {
+                tee.remove_branch(zbar_branch);
+                zbar_branch = null;
+            }
+        }
+    }
+
 
     /**
      * Emitted when a picture is done being taken.
      */
     public signal void picture_taken(Gdk.Pixbuf pixbuf);
+
+    /**
+     * Emitted when a barcode is detected in the camera feed.
+     *
+     * Only emitted if :detect-barcodes is true.
+     */
+    public signal void barcode_detected(BarcodeResult barcode);
 
 
     /**
@@ -205,6 +243,12 @@ public class Aperture.Viewfinder : Gtk.Grid {
                 state = READY;
                 video_taken();
                 return true;
+            } else if (msg.has_name("barcode")) {
+                unowned Gst.Structure structure = msg.get_structure();
+                barcode_detected(BarcodeResult() {
+                    type = structure.get_string("type"),
+                    data = structure.get_string("symbol")
+                });
             }
 
             break;

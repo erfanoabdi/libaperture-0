@@ -6,10 +6,12 @@ libaperture_pc_name = 'aperture-@0@'.format(aperture_api_version)
 
 libaperture_sources = files(
   'pipeline/tee.vala',
+  'pipeline/zbar.vala',
 
   'aperture.c',
   'aperture.vala',
   'aperture-audio-profile.vala',
+  'aperture-barcode-result.vala',
   'aperture-camera.vala',
   'aperture-camera-switcher-button.vala',
   'aperture-device.vala',

@@ -106,6 +106,14 @@ on_test_clicked (GtkButton *button, UI *ui)
   }
 }
 
+static void
+on_barcode_detected (ApertureViewfinder    *viewfinder,
+                     ApertureBarcodeResult *result,
+                     UI                    *ui)
+{
+  printf ("Barcode detected: (%s) %s\n", result->type, result->data);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -124,6 +132,8 @@ main (int argc, char **argv)
   gtk_init (&argc, &argv);
   aperture_init (&argc, &argv);
 
+  printf ("Barcode detection available: %s\n", aperture_barcode_detection_enabled () ? "yes" : "no");
+
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   grid = gtk_grid_new ();
   switcher = aperture_camera_switcher_button_new ();
@@ -133,6 +143,8 @@ main (int argc, char **argv)
   ui.gallery = aperture_gallery_new ();
   gallery_button = aperture_gallery_button_new ();
   ui.viewfinder = aperture_viewfinder_new ();
+
+  aperture_viewfinder_set_detect_barcodes (ui.viewfinder, TRUE);
 
   gtk_widget_set_size_request (GTK_WIDGET (ui.viewfinder), 200, 200);
   gtk_widget_set_size_request (GTK_WIDGET (ui.shutter), 44, 44);
@@ -147,6 +159,7 @@ main (int argc, char **argv)
   g_signal_connect (switcher, "camera-changed", G_CALLBACK (on_camera_changed), ui.viewfinder);
   g_signal_connect (ui.shutter, "clicked", G_CALLBACK (on_take_picture), &ui);
   g_signal_connect (ui.viewfinder, "picture-taken", G_CALLBACK (on_picture_taken), ui.gallery);
+  g_signal_connect (ui.viewfinder, "barcode-detected", G_CALLBACK (on_barcode_detected), &ui);
   g_signal_connect (window, "destroy", gtk_main_quit, NULL);
   g_signal_connect (button2, "clicked", G_CALLBACK (on_test_clicked), &ui);
 

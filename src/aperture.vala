@@ -76,6 +76,27 @@ namespace Aperture {
 
 
     /**
+     * Determines whether the barcode detection features of Aperture are
+     * enabled.
+     *
+     * This is based on whether the `zbar` element is available to GStreamer.
+     * It is part of the gst-plugins-bad package. Note that many distributions
+     * don't enable the zbar component of gst-plugins-bad by default, because
+     * it needs an extra dependency (the zbar library). You may need to find
+     * a gst-plugins-bad-extras package or similar, or compile that particular
+     * plugin yourself. For a Flatpak example, see the example application in
+     * Aperture's source code.
+     *
+     * Note that Aperture itself does *not* need to be recompiled to enable
+     * barcode detection. It is based solely on whether the GStreamer plugin
+     * is available.
+     */
+    public bool barcode_detection_enabled() {
+        return Gst.ElementFactory.find("zbar") != null;
+    }
+
+
+    /**
      * Represents a fraction.
      *
      * This is used for video framerates, among other things.
