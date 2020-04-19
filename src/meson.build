@@ -5,6 +5,8 @@ libaperture_gir_name = 'Aperture-@0@'.format(aperture_api_version)
 libaperture_pc_name = 'aperture-@0@'.format(aperture_api_version)
 
 libaperture_sources = files(
+  'pipeline/tee.vala',
+
   'aperture.c',
   'aperture.vala',
   'aperture-audio-profile.vala',

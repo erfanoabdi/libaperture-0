@@ -63,6 +63,7 @@ public class Aperture.Viewfinder : Gtk.Grid {
 
     // GST ELEMENTS
     private dynamic Gst.Element camerabin;
+    private Pipeline.Tee tee;
     private Gst.Pipeline pipeline;
 
     private delegate void BusCallback(Gst.Message msg);
@@ -87,10 +88,13 @@ public class Aperture.Viewfinder : Gtk.Grid {
         pipeline = new Gst.Pipeline(null);
         pipeline.get_bus().add_watch(Priority.DEFAULT, _on_bus_message_async);
 
+        tee = new Pipeline.Tee();
+
         // Create the camerabin
         camerabin = create_element("camerabin");
-        camerabin.viewfinder_sink = this.gst_widget.get_sink();
-        pipeline.add_many(camerabin);
+        camerabin.viewfinder_sink = tee;
+        tee.add_branch(gst_widget.get_sink());
+        pipeline.add(camerabin);
 
         // Pick a camera
         var devices = DeviceManager.get_instance();
