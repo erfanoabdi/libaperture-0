@@ -1,4 +1,4 @@
-/* aperture-example-main.c
+/* aperture-pipeline-tee.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,13 +19,23 @@
  */
 
 
-#include <stdio.h>
-#include <aperture.h>
+#pragma once
 
 
-int
-main (int argc, char **argv)
-{
-  return 0;
-}
+#include <gst/gst.h>
 
+
+G_BEGIN_DECLS
+
+
+#define APERTURE_TYPE_PIPELINE_TEE (aperture_pipeline_tee_get_type())
+G_DECLARE_FINAL_TYPE (AperturePipelineTee, aperture_pipeline_tee, APERTURE, PIPELINE_TEE, GstBin)
+
+
+AperturePipelineTee *aperture_pipeline_tee_new ();
+
+void aperture_pipeline_tee_add_branch (AperturePipelineTee *self, GstElement *branch);
+void aperture_pipeline_tee_remove_branch (AperturePipelineTee *self, GstElement *branch);
+
+
+G_END_DECLS

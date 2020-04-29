@@ -1,4 +1,4 @@
-/* aperture.c
+/* aperture-device-manager.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -18,16 +18,28 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
-#include <gdk/gdk.h>
-#include <gdk/gdkwayland.h>
 
-gboolean
-aperture_is_wayland ()
-{
-#ifdef GDK_WINDOWING_WAYLAND
-  GdkDisplay *display = gdk_display_get_default ();
-  return GDK_IS_WAYLAND_DISPLAY (display);
-#else
-  return false;
+#pragma once
+
+#if !defined(_LIBAPERTURE_INSIDE) && !defined(_LIBAPERTURE_COMPILATION)
+#error "Only <aperture.h> can be included directly."
 #endif
-}
+
+#include <glib-object.h>
+
+
+G_BEGIN_DECLS
+
+
+#define APERTURE_TYPE_DEVICE_MANAGER (aperture_device_manager_get_type())
+G_DECLARE_FINAL_TYPE (ApertureDeviceManager, aperture_device_manager, APERTURE, DEVICE_MANAGER, GObject)
+
+
+ApertureDeviceManager *aperture_device_manager_get_instance    (void);
+
+int                    aperture_device_manager_get_num_cameras (ApertureDeviceManager *self);
+int                    aperture_device_manager_next_camera     (ApertureDeviceManager *self,
+                                                                int                    idx);
+
+
+G_END_DECLS

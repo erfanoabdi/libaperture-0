@@ -1,4 +1,4 @@
-/* zbar.vala
+/* aperture-private.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,25 +19,13 @@
  */
 
 
-internal class Aperture.Pipeline.ZBar : Gst.Bin {
-    private Gst.Element videoconvert;
-    private dynamic Gst.Element zbar;
-    private Gst.Element fakesink;
+#include <glib-object.h>
 
 
-    construct {
-        videoconvert = Gst.ElementFactory.make("videoconvert", null);
-        zbar = Gst.ElementFactory.make("zbar", null);
-        fakesink = Gst.ElementFactory.make("fakesink", null);
+G_BEGIN_DECLS
 
-        zbar.cache = true;
 
-        add_many(videoconvert, zbar, fakesink);
-        videoconvert.link_many(zbar, fakesink);
+void aperture_private_ensure_initialized (void);
 
-        var pad = videoconvert.get_static_pad("sink");
-        var ghost_pad = new Gst.GhostPad("sink", pad);
-        ghost_pad.set_active(true);
-        add_pad(ghost_pad);
-    }
-}
+
+G_END_DECLS

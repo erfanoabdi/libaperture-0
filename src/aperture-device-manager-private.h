@@ -1,4 +1,4 @@
-/* aperture-video-profile.vala
+/* aperture-device-manager-private.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,16 +19,14 @@
  */
 
 
-[Immutable]
-public struct Aperture.VideoProfile {
-    int width;
-    int height;
-    Fraction framerate;
-    string format;
+#include <gst/gst.h>
+#include "aperture-device-manager.h"
 
-    public string to_string() {
-        return "VideoProfile <%dx%d %s @%ffps>".printf(
-            width, height, format, framerate.as_double()
-        );
-    }
-}
+
+G_BEGIN_DECLS
+
+
+GstElement *aperture_device_manager_get_video_source (ApertureDeviceManager *self, int idx);
+
+
+G_END_DECLS

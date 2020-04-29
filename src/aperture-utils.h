@@ -1,4 +1,4 @@
-/* aperture-example-main.c
+/* aperture-utils.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,13 +19,20 @@
  */
 
 
-#include <stdio.h>
-#include <aperture.h>
+#include <glib-object.h>
+
+#if !defined(_LIBAPERTURE_INSIDE) && !defined(_LIBAPERTURE_COMPILATION)
+#error "Only <aperture.h> can be included directly."
+#endif
 
 
-int
-main (int argc, char **argv)
-{
-  return 0;
-}
+G_BEGIN_DECLS
 
+
+void     aperture_init                         (int *argc,
+                                                char ***argv);
+gboolean aperture_is_initialized               (void);
+gboolean aperture_is_barcode_detection_enabled (void);
+
+
+G_END_DECLS

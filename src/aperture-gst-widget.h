@@ -1,4 +1,4 @@
-/* aperture-audio-profile.vala
+/* aperture-gst-widget.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,16 +19,25 @@
  */
 
 
-[Immutable]
-public struct Aperture.AudioProfile {
-    Range bitrate;
-    Range channels;
-    string format;
+#pragma once
+
+#if !defined(_LIBAPERTURE_INSIDE) && !defined(_LIBAPERTURE_COMPILATION)
+#error "Only <aperture.h> can be included directly."
+#endif
+
+#include <gtk/gtk.h>
+#include <gst/gst.h>
 
 
-    public string to_string() {
-        return "%s (%s channels, %s bit/s)".printf(
-            format, channels.to_string(), bitrate.to_string()
-        );
-    }
-}
+G_BEGIN_DECLS
+
+
+#define APERTURE_TYPE_GST_WIDGET (aperture_gst_widget_get_type())
+G_DECLARE_FINAL_TYPE (ApertureGstWidget, aperture_gst_widget, APERTURE, GST_WIDGET, GtkBin)
+
+
+ApertureGstWidget *aperture_gst_widget_new      (void);
+GstElement        *aperture_gst_widget_get_sink (ApertureGstWidget *self);
+
+
+G_END_DECLS

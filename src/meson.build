@@ -4,72 +4,87 @@ aperture_build_dir = meson.current_build_dir()
 libaperture_gir_name = 'Aperture-@0@'.format(aperture_api_version)
 libaperture_pc_name = 'aperture-@0@'.format(aperture_api_version)
 
-libaperture_sources = files(
-  'pipeline/tee.vala',
-  'pipeline/zbar.vala',
 
-  'aperture.c',
-  'aperture.vala',
-  'aperture-audio-profile.vala',
-  'aperture-barcode-result.vala',
-  'aperture-camera.vala',
-  'aperture-camera-switcher-button.vala',
-  'aperture-device.vala',
-  'aperture-device-manager.vala',
-  'aperture-gallery.vala',
-  'aperture-gallery-button.vala',
-  'aperture-gallery-page.vala',
-  'aperture-gst-widget.vala',
-  'aperture-microphone.vala',
-  'aperture-shutter-button.vala',
-  'aperture-tween.vala',
-  'aperture-video-profile.vala',
-  'aperture-viewfinder.vala',
-)
-
-# FIXME Disable --disable-since-check after libhandy 1.0 is released
-libaperture_vala_flags = [
-  '--includedir', meson.project_name(),
-  '--disable-since-check',
+# List headers and sources
+libaperture_headers = [
+  'aperture-barcode-result.h',
+  'aperture-barcode-types.h',
+  'aperture-device-manager.h',
+  'aperture-gst-widget.h',
+  'aperture-viewfinder.h'
 ]
 
+libaperture_sources = files(
+  'pipeline/aperture-pipeline-tee.c',
+
+  'aperture-barcode-result.c',
+  'aperture-device-manager.c',
+  'aperture-gst-widget.c',
+  'aperture-utils.c',
+  'aperture-viewfinder.c',
+)
+
+
 libaperture_c_flags = [
-  '-DG_LOG_DOMAIN="aperture"',
-  '-DHANDY_USE_UNSTABLE_API',
+  '-DG_LOG_DOMAIN="Aperture"',
+  '-D_LIBAPERTURE_COMPILATION',
+  '-Wimplicit-fallthrough',
+  '-Wdeclaration-after-statement',
 ]
 
 libaperture_header_install_dir = get_option('includedir') / 'aperture'
 
-libaperture_lib = shared_library(libaperture_pc_name, libaperture_sources,
+libaperture_enum_headers = files(
+  'aperture-viewfinder.h',
+)
+
+libaperture_enums = gnome.mkenums_simple('aperture-enums',
+  sources: libaperture_enum_headers,
+  header_prefix: '''
+#if !defined(_LIBAPERTURE_INSIDE) && !defined(_LIBAPERTURE_COMPILATION)
+#error "Only <aperture.h> can be included directly."
+#endif''',
+  install_header: true,
+  install_dir: libaperture_header_install_dir,
+)
+libaperture_sources += libaperture_enums[0]
+libaperture_headers += libaperture_enums[1]
+
+
+# Create the library
+libaperture_lib = shared_library(libaperture_pc_name,
+  libaperture_sources, libaperture_headers,
   dependencies: [ libaperture_deps, libm ],
-  vala_args: libaperture_vala_flags,
   c_args: libaperture_c_flags,
   version: aperture_api_version,
-  vala_header: 'aperture/aperture.h',
-  vala_vapi: libaperture_pc_name + '.vapi',
-  vala_gir: libaperture_gir_name + '.gir',
   install: true,
-  install_dir: [true, libaperture_header_install_dir, true, true],
+  install_dir: true,
 )
 
-# Also install vala deps file
-install_data('aperture.deps',
-  rename: libaperture_pc_name + '.deps',
-  install_dir: get_option('datadir') / 'vala' / 'vapi',
+# Create a dependency to use later
+libaperture_dep = declare_dependency(
+  link_with: libaperture_lib,
+  include_directories: include_directories('.', '..'),
+  dependencies: libaperture_deps,
 )
 
 
-custom_target(libaperture_gir_name + '.typelib',
-  command: [ g_ir_compiler,
-    '--output', '@OUTPUT@',
-    meson.current_build_dir() / (libaperture_gir_name + '.gir')
-  ],
-  output: libaperture_gir_name + '.typelib',
-  depends: libaperture_lib,
+# GIR/introspection stuff
+libaperture_gir = gnome.generate_gir(libaperture_lib,
+  sources: libaperture_headers + libaperture_sources,
+  nsversion: aperture_api_version,
+  namespace: 'Aperture',
+  header: 'aperture.h',
+  symbol_prefix: 'aperture',
+  identifier_prefix: 'Aperture',
+  link_with: libaperture_lib,
+  includes: ['Gst-1.0', 'Gtk-3.0'],
   install: true,
-  install_dir: get_option('libdir') / 'girepository-1.0',
+  extra_args: [
+    '-D_LIBAPERTURE_COMPILATION',
+  ]
 )
-libaperture_gir_include_dir = meson.current_build_dir()
+
 
 # Pkg-config file
 pkgconfig.generate(libaperture_lib,
@@ -79,10 +94,3 @@ pkgconfig.generate(libaperture_lib,
   requires: libaperture_deps,
   libraries: libm
 )
-
-libaperture_dep = declare_dependency(
-  link_with: libaperture_lib,
-  include_directories: include_directories('.', '..'),
-  dependencies: libaperture_deps,
-)
-

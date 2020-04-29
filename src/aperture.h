@@ -1,4 +1,4 @@
-/* aperture-example-main.c
+/* aperture.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,13 +19,22 @@
  */
 
 
-#include <stdio.h>
-#include <aperture.h>
+#pragma once
+
+#include <gtk/gtk.h>
+#include <gst/gst.h>
 
 
-int
-main (int argc, char **argv)
-{
-  return 0;
-}
+#define _LIBAPERTURE_INSIDE
 
+
+#include "aperture-barcode-result.h"
+#include "aperture-barcode-types.h"
+#include "aperture-device-manager.h"
+#include "aperture-enums.h"
+#include "aperture-gst-widget.h"
+#include "aperture-utils.h"
+#include "aperture-viewfinder.h"
+
+
+#undef _LIBAPERTURE_INSIDE
