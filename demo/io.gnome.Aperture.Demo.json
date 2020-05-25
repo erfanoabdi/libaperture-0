@@ -1,5 +1,5 @@
 {
-    "app-id" : "org.gnome.libaperture.Example",
+    "app-id" : "io.gnome.Aperture.Demo",
     "runtime" : "org.gnome.Platform",
     "runtime-version" : "master",
     "sdk" : "org.gnome.Sdk",
@@ -67,7 +67,6 @@
                     }
                 ]
             }]
-
         },
         {
             "name" : "libaperture",

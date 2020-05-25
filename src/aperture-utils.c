@@ -96,7 +96,7 @@ aperture_private_ensure_initialized (void)
  * don't enable the zbar component of gst-plugins-bad by default, because
  * it needs an extra dependency (the zbar library). You may need to find
  * a gst-plugins-bad-extras package or similar, or compile that particular
- * plugin yourself. For a Flatpak example, see the example application in
+ * plugin yourself. For a Flatpak example, see the demo application in
  * Aperture's source code.
  *
  * Note that Aperture itself does *not* need to be recompiled to enable

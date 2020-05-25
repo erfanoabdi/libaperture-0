@@ -8,9 +8,10 @@ flatpak:
   image: registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:master
   stage: build
   variables:
-    MANIFEST_PATH: "examples/org.gnome.libaperture.Example.json"
+    MANIFEST_PATH: "demo/io.gnome.Aperture.Demo.json"
     RUNTIME_REPO: "https://flathub.org/repo/flathub.flatpakrepo"
     FLATPAK_MODULE: "libaperture"
     MESON_ARGS: ""
-    APP_ID: "org.gnome.libaperture.Example"
-    BUNDLE: "aperture-example.flatpak"
+    APP_ID: "io.gnome.Aperture.Demo"
+    BUNDLE: "aperture-demo.flatpak"
+

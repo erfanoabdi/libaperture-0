@@ -36,8 +36,8 @@ libaperture_deps = [
 
 subdir('src')
 
-if get_option('examples')
-  subdir('examples')
+if get_option('demo')
+  subdir('demo')
 endif
 
 subdir('tests')

@@ -1,4 +1,4 @@
-/* aperture-example-main.c
+/* aperture-demo-window.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,13 +19,17 @@
  */
 
 
-#include <stdio.h>
+#pragma once
+
+#include <gtk/gtk.h>
 #include <aperture.h>
 
+G_BEGIN_DECLS
 
-int
-main (int argc, char **argv)
-{
-  return 0;
-}
+#define APERTURE_TYPE_DEMO_WINDOW (aperture_demo_window_get_type())
 
+G_DECLARE_FINAL_TYPE (ApertureDemoWindow, aperture_demo_window, APERTURE, DEMO_WINDOW, GtkApplicationWindow)
+
+ApertureDemoWindow *aperture_demo_window_new (GtkApplication *app);
+
+G_END_DECLS

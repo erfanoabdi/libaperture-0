@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/gnome/Aperture/Demo/ui">
+    <file preprocess="xml-stripblanks">demo-window.ui</file>
+  </gresource>
+</gresources>

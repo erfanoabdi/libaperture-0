@@ -1,1 +1,1 @@
-option('examples', type: 'boolean', value: true, description: 'Build examples')
+option('demo', type: 'boolean', value: true, description: 'Build the demo application')
