@@ -7,8 +7,6 @@ libaperture_pc_name = 'aperture-@0@'.format(aperture_api_version)
 
 # List headers and sources
 libaperture_headers = [
-  'aperture-barcode-result.h',
-  'aperture-barcode-types.h',
   'aperture-device-manager.h',
   'aperture-gst-widget.h',
   'aperture-viewfinder.h'
@@ -17,7 +15,6 @@ libaperture_headers = [
 libaperture_sources = files(
   'pipeline/aperture-pipeline-tee.c',
 
-  'aperture-barcode-result.c',
   'aperture-device-manager.c',
   'aperture-gst-widget.c',
   'aperture-utils.c',
@@ -35,6 +32,7 @@ libaperture_c_flags = [
 libaperture_header_install_dir = get_option('includedir') / 'aperture'
 
 libaperture_enum_headers = files(
+  'aperture-utils.h',
   'aperture-viewfinder.h',
 )
 

@@ -21,6 +21,8 @@
 
 #include <gst/gst.h>
 
+#include "aperture-utils.h"
+
 
 static gboolean initialized = FALSE;
 static gboolean init_warning = FALSE;
@@ -113,3 +115,90 @@ aperture_is_barcode_detection_enabled (void)
   return factory != NULL;
 }
 
+
+/**
+ * ApertureBarcode:
+ * @APERTURE_BARCODE_COMPOSITE: The code is a composite of multiple barcode types.
+ * @APERTURE_BARCODE_EAN2: https://en.wikipedia.org/wiki/EAN-2
+ * @APERTURE_BARCODE_EAN5: https://en.wikipedia.org/wiki/EAN-5
+ * @APERTURE_BARCODE_EAN8: https://en.wikipedia.org/wiki/EAN-8
+ * @APERTURE_BARCODE_EAN13: https://en.wikipedia.org/wiki/International_Article_Number
+ * @APERTURE_BARCODE_UPCA: https://en.wikipedia.org/wiki/Universal_Product_Code
+ * @APERTURE_BARCODE_UPCE: https://en.wikipedia.org/wiki/Universal_Product_Code#UPC-E
+ * @APERTURE_BARCODE_ISBN10: https://en.wikipedia.org/wiki/International_Standard_Book_Number
+ * @APERTURE_BARCODE_ISBN13: https://en.wikipedia.org/wiki/International_Standard_Book_Number
+ * @APERTURE_BARCODE_I25: https://en.wikipedia.org/wiki/Interleaved_2_of_5
+ * @APERTURE_BARCODE_DATABAR: https://en.wikipedia.org/wiki/GS1_DataBar
+ * @APERTURE_BARCODE_DATABAR_EXP: https://en.wikipedia.org/wiki/GS1_DataBar
+ * @APERTURE_BARCODE_CODABAR: https://en.wikipedia.org/wiki/Codabar
+ * @APERTURE_BARCODE_CODE39: https://en.wikipedia.org/wiki/Code_39
+ * @APERTURE_BARCODE_CODE93: https://en.wikipedia.org/wiki/Code_93
+ * @APERTURE_BARCODE_CODE128: https://en.wikipedia.org/wiki/Code_128
+ * @APERTURE_BARCODE_PDF417: https://en.wikipedia.org/wiki/PDF417
+ * @APERTURE_BARCODE_QR: https://en.wikipedia.org/wiki/QR_code
+ *
+ * Represents the type of a barcode detected in a video stream.
+ *
+ * Different barcode types are used for different purposes and different types
+ * of data, so it is important to check a barcode's type before attempting to
+ * use its data.
+ *
+ * Since: 0.1
+ */
+
+
+/**
+ * PRIVATE:aperture_barcode_type_from_string:
+ * @string: a barcode type string from ZBar
+ *
+ * Takes a string representing a barcode type from ZBar and returns the
+ * matching #ApertureBarcode value.
+ *
+ * Returns: the barcode enum, or %APERTURE_BARCODE_UNKNOWN if the type is
+ * not recognized
+ */
+ApertureBarcode
+aperture_barcode_type_from_string (const char *string)
+{
+  // This list is from https://github.com/ZBar/ZBar/blob/854a5d97059e395807091ac4d80c53f7968abb8f/zbar/symbol.c
+
+  if (g_strcmp0 (string, "COMPOSITE") == 0) {
+    return APERTURE_BARCODE_COMPOSITE;
+  } else if (g_strcmp0 (string, "EAN-2") == 0) {
+    return APERTURE_BARCODE_EAN2;
+  } else if (g_strcmp0 (string, "EAN-5") == 0) {
+    return APERTURE_BARCODE_EAN5;
+  } else if (g_strcmp0 (string, "EAN-8") == 0) {
+    return APERTURE_BARCODE_EAN8;
+  } else if (g_strcmp0 (string, "EAN-13") == 0) {
+    return APERTURE_BARCODE_EAN13;
+  } else if (g_strcmp0 (string, "UPC-A") == 0) {
+    return APERTURE_BARCODE_UPCA;
+  } else if (g_strcmp0 (string, "UPC-E") == 0) {
+    return APERTURE_BARCODE_UPCE;
+  } else if (g_strcmp0 (string, "ISBN-10") == 0) {
+    return APERTURE_BARCODE_ISBN13;
+  } else if (g_strcmp0 (string, "ISBN-13") == 0) {
+    return APERTURE_BARCODE_ISBN10;
+  } else if (g_strcmp0 (string, "I2/5") == 0) {
+    return APERTURE_BARCODE_I25;
+  } else if (g_strcmp0 (string, "DataBar") == 0) {
+    return APERTURE_BARCODE_DATABAR;
+  } else if (g_strcmp0 (string, "DataBar-Exp") == 0) {
+    return APERTURE_BARCODE_DATABAR_EXP;
+  } else if (g_strcmp0 (string, "Codabar") == 0) {
+    return APERTURE_BARCODE_CODABAR;
+  } else if (g_strcmp0 (string, "CODE-39") == 0) {
+    return APERTURE_BARCODE_CODE39;
+  } else if (g_strcmp0 (string, "CODE-93") == 0) {
+    return APERTURE_BARCODE_CODE93;
+  } else if (g_strcmp0 (string, "CODE-128") == 0) {
+    return APERTURE_BARCODE_CODE128;
+  } else if (g_strcmp0 (string, "PDF417") == 0) {
+    return APERTURE_BARCODE_PDF417;
+  } else if (g_strcmp0 (string, "QR-Code") == 0) {
+    return APERTURE_BARCODE_QR;
+  } else {
+    return APERTURE_BARCODE_UNKNOWN;
+  }
+}

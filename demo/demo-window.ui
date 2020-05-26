@@ -22,7 +22,9 @@
                   <object class="ApertureViewfinder" id="viewfinder">
                     <property name="visible">True</property>
                     <property name="height-request">200</property>
+                    <property name="detect-barcodes">True</property>
                     <signal name="notify::state" handler="on_viewfinder_state_notify" swapped="yes" />
+                    <signal name="barcode-detected" handler="on_barcode_detected" />
                   </object>
                 </child>
                 <child>

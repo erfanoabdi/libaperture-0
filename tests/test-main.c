@@ -22,6 +22,8 @@
 #include <glib.h>
 #include <aperture.h>
 
+#include "aperture-private.h"
+
 
 static void
 test_init ()
@@ -32,12 +34,25 @@ test_init ()
 }
 
 
+static void
+test_barcodes_enum ()
+{
+  g_assert_cmpint (aperture_barcode_type_from_string ("COMPOSITE"), ==, APERTURE_BARCODE_COMPOSITE);
+  g_assert_cmpint (aperture_barcode_type_from_string ("DataBar"), ==, APERTURE_BARCODE_DATABAR);
+  g_assert_cmpint (aperture_barcode_type_from_string ("QR-Code"), ==, APERTURE_BARCODE_QR);
+  g_assert_cmpint (aperture_barcode_type_from_string ("I2/5"), ==, APERTURE_BARCODE_I25);
+  g_assert_cmpint (aperture_barcode_type_from_string ("three zebras walking into a bar"), ==, APERTURE_BARCODE_UNKNOWN);
+}
+
+
 int
 main (int argc, char **argv)
 {
   g_test_init (&argc, &argv, NULL);
 
   g_test_add_func ("/init", test_init);
+
+  g_test_add_func ("/barcodes/enum", test_barcodes_enum);
 
   return g_test_run ();
 }

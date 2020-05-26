@@ -26,7 +26,6 @@
 #endif
 
 #include <gtk/gtk.h>
-#include "aperture-barcode-result.h"
 #include "aperture-enums.h"
 
 

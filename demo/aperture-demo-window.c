@@ -110,6 +110,14 @@ on_stop_video_clicked (GtkButton *button, ApertureDemoWindow *self)
 
 
 static void
+on_barcode_detected (ApertureViewfinder *viewfinder, ApertureBarcode barcode_type, const char *data)
+{
+  const char *type = g_enum_to_string (APERTURE_TYPE_BARCODE, barcode_type);
+  g_print ("Barcode detected (%s): %s\n", type, data);
+}
+
+
+static void
 on_switch_camera_clicked (GtkButton *button, ApertureDemoWindow *self)
 {
   /* When the "switch camera" button is clicked, use
@@ -139,6 +147,7 @@ aperture_demo_window_class_init (ApertureDemoWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, ApertureDemoWindow, controls_stack);
   gtk_widget_class_bind_template_child (widget_class, ApertureDemoWindow, switch_camera);
   gtk_widget_class_bind_template_child (widget_class, ApertureDemoWindow, no_cameras_stack);
+  gtk_widget_class_bind_template_callback (widget_class, on_barcode_detected);
   gtk_widget_class_bind_template_callback (widget_class, on_stop_video_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_switch_camera_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_take_photo_clicked);

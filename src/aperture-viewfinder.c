@@ -234,10 +234,10 @@ on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
   ApertureViewfinder *self = APERTURE_VIEWFINDER (user_data);
   g_autoptr(GError) err = NULL;
   g_autofree char *debug_info = NULL;
-  const char *code_type = NULL;
+  const char *code_type_str = NULL;
+  ApertureBarcode code_type;
   const char *data = NULL;
   const GstStructure *structure;
-  g_autoptr(ApertureBarcodeResult) barcode = NULL;
 
   switch (message->type) {
   case GST_MESSAGE_ERROR:
@@ -258,10 +258,11 @@ on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
       g_signal_emit (self, signals[SIGNAL_VIDEO_TAKEN], 0);
     } else if (gst_message_has_name (message, "barcode")) {
       structure = gst_message_get_structure (message);
-      code_type = gst_structure_get_string (structure, "type");
+      code_type_str = gst_structure_get_string (structure, "type");
+      code_type = aperture_barcode_type_from_string (code_type_str);
       data = gst_structure_get_string (structure, "symbol");
-      barcode = aperture_barcode_result_new (code_type, data);
-      g_signal_emit (self, signals[SIGNAL_BARCODE_DETECTED], 0, barcode);
+
+      g_signal_emit (self, signals[SIGNAL_BARCODE_DETECTED], 0, code_type, data);
     }
     break;
   default:
@@ -501,7 +502,8 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
   /**
    * ApertureViewfinder::barcode-detected:
    * @self: the #ApertureViewfinder
-   * @barcode: information about the barcode
+   * @barcode_type: the type of barcode
+   * @data: the data encoded in the barcode
    *
    * Emitted when a barcode is detected in the camera feed.
    *
@@ -519,7 +521,7 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE,
-                  1, APERTURE_TYPE_BARCODE_RESULT);
+                  2, APERTURE_TYPE_BARCODE, G_TYPE_STRING);
 
   /**
    * ApertureViewfinder::error:

@@ -19,13 +19,19 @@
  */
 
 
+#pragma once
+
 #include <glib-object.h>
+
+#include "aperture-utils.h"
 
 
 G_BEGIN_DECLS
 
 
-void aperture_private_ensure_initialized (void);
+void            aperture_private_ensure_initialized (void);
+
+ApertureBarcode aperture_barcode_type_from_string   (const char *string);
 
 
 G_END_DECLS

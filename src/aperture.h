@@ -28,8 +28,6 @@
 #define _LIBAPERTURE_INSIDE
 
 
-#include "aperture-barcode-result.h"
-#include "aperture-barcode-types.h"
 #include "aperture-device-manager.h"
 #include "aperture-enums.h"
 #include "aperture-gst-widget.h"
