@@ -49,6 +49,27 @@ enum {
 static guint signals[N_SIGNALS];
 
 
+/* FIXME: When GLib 2.64 becomes common enough, replace this with
+ * g_list_store_find() */
+static gboolean
+find_in_list_model (GListModel *model, gpointer item, uint *position)
+{
+  g_autoptr(GstDevice) device = NULL;
+  int i;
+  int n = g_list_model_get_n_items (model);
+
+  for (i = 0; i < n; i ++) {
+    g_set_object (&device, g_list_model_get_item (model, i));
+    if (device == item) {
+      *position = i;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
 static gboolean
 on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
 {
@@ -72,7 +93,7 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
     gst_message_parse_device_removed (message, &device);
     g_debug ("Camera removed: %s", gst_device_get_display_name (device));
 
-    if (g_list_store_find (self->device_list, device, &device_index)) {
+    if (find_in_list_model (G_LIST_MODEL (self->device_list), device, &device_index)) {
       g_list_store_remove (self->device_list, device_index);
     }
 
