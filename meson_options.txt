@@ -1,1 +1,2 @@
+option('gtk_doc', type: 'boolean', value: true, description: 'Build the documentation')
 option('demo', type: 'boolean', value: true, description: 'Build the demo application')

@@ -22,7 +22,7 @@
 #include <glib.h>
 #include <aperture.h>
 
-#include "aperture-private.h"
+#include "private/aperture-private.h"
 
 
 static void

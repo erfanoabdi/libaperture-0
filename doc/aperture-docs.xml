@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+               "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd"
+[
+  <!ENTITY % local.common.attrib "xmlns:xi  CDATA  #FIXED 'http://www.w3.org/2003/XInclude'">
+  <!ENTITY % gtkdocentities SYSTEM "xml/gtkdocentities.ent">
+  %gtkdocentities;
+]>
+<book id="index">
+  <bookinfo>
+    <title>&package_name; Reference Manual</title>
+    <releaseinfo>
+      <para>
+        This document is the API reference for &package_name; &package_version;.
+        <ulink type="http" url="&package_url;">Aperture</ulink> is a camera library for GTK.
+      </para>
+      <para>
+        If you find any issues in this API reference, please report them using
+        <ulink type="http" url="&package_bugreport;">the bugtracker</ulink>.
+      </para>
+    </releaseinfo>
+
+    <copyright>
+      <year>2020</year>
+      <holder>James Westman and other contributors</holder>
+    </copyright>
+  </bookinfo>
+
+  <chapter id="api-reference">
+    <title>API Reference</title>
+    <xi:include href="xml/aperture-device-manager.xml"/>
+    <xi:include href="xml/aperture-viewfinder.xml"/>
+    <xi:include href="xml/aperture-utils.xml"/>
+  </chapter>
+
+  <part id="symbol-index">
+    <title>Index</title>
+    <chapter id="object-tree">
+      <title>Object Hierarchy</title>
+      <xi:include href="xml/tree_index.sgml"/>
+    </chapter>
+
+    <index id="api-index-full">
+      <title>Index of Symbols</title>
+      <xi:include href="xml/api-index-full.xml"><xi:fallback /></xi:include>
+    </index>
+
+    <!--<index id="deprecated-api-index" role="deprecated">
+      <title>Index of deprecated API</title>
+      <xi:include href="xml/api-index-deprecated.xml"><xi:fallback /></xi:include>
+    </index>-->
+
+    <index id="api-index-0-1">
+      <title>Index of New Symbols in 0.1</title>
+      <xi:include href="xml/api-index-0.1.xml"><xi:fallback /></xi:include>
+    </index>
+
+    <xi:include href="xml/annotation-glossary.xml" />
+  </part>
+</book>
+

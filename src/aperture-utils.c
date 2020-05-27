@@ -29,6 +29,13 @@ static gboolean init_warning = FALSE;
 
 
 /**
+ * SECTION:aperture-utils
+ * @title: Miscellaneous Utilities
+ * @short_description: Miscellaneous utility functions and enums
+ */
+
+
+/**
  * aperture_init:
  * @argc: pointer to the number of command line arguments, or %NULL
  * @argv: pointer to the program's command line arguments, or %NULL
@@ -88,7 +95,7 @@ aperture_private_ensure_initialized (void)
 
 
 /**
- * aperture_barcode_detection_enabled:
+ * aperture_is_barcode_detection_enabled:
  *
  * Determines whether the barcode detection features of Aperture are
  * enabled.
@@ -118,24 +125,25 @@ aperture_is_barcode_detection_enabled (void)
 
 /**
  * ApertureBarcode:
+ * @APERTURE_BARCODE_UNKNOWN: A barcode was detected, but Aperture does not recognize its type.
  * @APERTURE_BARCODE_COMPOSITE: The code is a composite of multiple barcode types.
- * @APERTURE_BARCODE_EAN2: https://en.wikipedia.org/wiki/EAN-2
- * @APERTURE_BARCODE_EAN5: https://en.wikipedia.org/wiki/EAN-5
- * @APERTURE_BARCODE_EAN8: https://en.wikipedia.org/wiki/EAN-8
- * @APERTURE_BARCODE_EAN13: https://en.wikipedia.org/wiki/International_Article_Number
- * @APERTURE_BARCODE_UPCA: https://en.wikipedia.org/wiki/Universal_Product_Code
- * @APERTURE_BARCODE_UPCE: https://en.wikipedia.org/wiki/Universal_Product_Code#UPC-E
- * @APERTURE_BARCODE_ISBN10: https://en.wikipedia.org/wiki/International_Standard_Book_Number
- * @APERTURE_BARCODE_ISBN13: https://en.wikipedia.org/wiki/International_Standard_Book_Number
- * @APERTURE_BARCODE_I25: https://en.wikipedia.org/wiki/Interleaved_2_of_5
- * @APERTURE_BARCODE_DATABAR: https://en.wikipedia.org/wiki/GS1_DataBar
- * @APERTURE_BARCODE_DATABAR_EXP: https://en.wikipedia.org/wiki/GS1_DataBar
- * @APERTURE_BARCODE_CODABAR: https://en.wikipedia.org/wiki/Codabar
- * @APERTURE_BARCODE_CODE39: https://en.wikipedia.org/wiki/Code_39
- * @APERTURE_BARCODE_CODE93: https://en.wikipedia.org/wiki/Code_93
- * @APERTURE_BARCODE_CODE128: https://en.wikipedia.org/wiki/Code_128
- * @APERTURE_BARCODE_PDF417: https://en.wikipedia.org/wiki/PDF417
- * @APERTURE_BARCODE_QR: https://en.wikipedia.org/wiki/QR_code
+ * @APERTURE_BARCODE_EAN2: <https://en.wikipedia.org/wiki/EAN-2>
+ * @APERTURE_BARCODE_EAN5: <https://en.wikipedia.org/wiki/EAN-5>
+ * @APERTURE_BARCODE_EAN8: <https://en.wikipedia.org/wiki/EAN-8>
+ * @APERTURE_BARCODE_EAN13: <https://en.wikipedia.org/wiki/International_Article_Number>
+ * @APERTURE_BARCODE_UPCA: <https://en.wikipedia.org/wiki/Universal_Product_Code>
+ * @APERTURE_BARCODE_UPCE: <https://en.wikipedia.org/wiki/Universal_Product_Code#UPC-E>
+ * @APERTURE_BARCODE_ISBN10: <https://en.wikipedia.org/wiki/International_Standard_Book_Number>
+ * @APERTURE_BARCODE_ISBN13: <https://en.wikipedia.org/wiki/International_Standard_Book_Number>
+ * @APERTURE_BARCODE_I25: <https://en.wikipedia.org/wiki/Interleaved_2_of_5>
+ * @APERTURE_BARCODE_DATABAR: <https://en.wikipedia.org/wiki/GS1_DataBar>
+ * @APERTURE_BARCODE_DATABAR_EXP: <https://en.wikipedia.org/wiki/GS1_DataBar>
+ * @APERTURE_BARCODE_CODABAR: <https://en.wikipedia.org/wiki/Codabar>
+ * @APERTURE_BARCODE_CODE39: <https://en.wikipedia.org/wiki/Code_39>
+ * @APERTURE_BARCODE_CODE93: <https://en.wikipedia.org/wiki/Code_93>
+ * @APERTURE_BARCODE_CODE128: <https://en.wikipedia.org/wiki/Code_128>
+ * @APERTURE_BARCODE_PDF417: <https://en.wikipedia.org/wiki/PDF417>
+ * @APERTURE_BARCODE_QR: <https://en.wikipedia.org/wiki/QR_code>
  *
  * Represents the type of a barcode detected in a video stream.
  *

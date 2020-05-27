@@ -2,6 +2,7 @@ include: 'https://gitlab.gnome.org/GNOME/citemplates/raw/master/flatpak/flatpak_
 
 stages:
 - build
+- publish
 
 flatpak:
   extends: .flatpak
@@ -14,4 +15,27 @@ flatpak:
     MESON_ARGS: ""
     APP_ID: "io.gnome.Aperture.Demo"
     BUNDLE: "aperture-demo.flatpak"
+
+fedora:
+  image: registry.gitlab.gnome.org/gnome/gtk/fedora-docs:v19
+  stage: build
+  script:
+    - meson --buildtype=release _build
+    - ninja -C _build aperture-doc
+    - mv _build/doc/html/ _reference/
+  artifacts:
+    paths:
+    - _reference
+
+pages:
+  stage: publish
+  dependencies:
+  - fedora
+  script:
+  - mv _reference public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
 

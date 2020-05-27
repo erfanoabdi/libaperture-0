@@ -18,6 +18,16 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
+/**
+ * SECTION:aperture-device-manager
+ * @title: ApertureDeviceManager
+ * @short_description: Finds and monitors camera devices
+ *
+ * #ApertureDeviceManager finds and monitors camera devices that can be used
+ * in Aperture. It provides functions for listing cameras, and signals for
+ * detecting when cameras are plugged in or unplugged.
+ */
+
 
 #include <gst/gst.h>
 #include <gio/gio.h>

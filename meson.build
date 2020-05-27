@@ -6,6 +6,7 @@ project('aperture', ['c'],
 
 
 aperture_api_version = '0'
+aperture_library_name = 'aperture-@0@'.format(aperture_api_version)
 
 
 add_project_arguments([
@@ -35,6 +36,7 @@ libaperture_deps = [
 ]
 
 subdir('src')
+subdir('doc')
 
 if get_option('demo')
   subdir('demo')

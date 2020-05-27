@@ -1,9 +1,5 @@
 aperture_build_dir = meson.current_build_dir()
 
-# Core library
-libaperture_gir_name = 'Aperture-@0@'.format(aperture_api_version)
-libaperture_pc_name = 'aperture-@0@'.format(aperture_api_version)
-
 
 # List headers and sources
 libaperture_headers = [
@@ -50,7 +46,7 @@ libaperture_headers += libaperture_enums[1]
 
 
 # Create the library
-libaperture_lib = shared_library(libaperture_pc_name,
+libaperture_lib = shared_library(aperture_library_name,
   libaperture_sources, libaperture_headers,
   dependencies: [ libaperture_deps, libm ],
   c_args: libaperture_c_flags,
@@ -88,7 +84,7 @@ libaperture_gir = gnome.generate_gir(libaperture_lib,
 pkgconfig.generate(libaperture_lib,
   name: 'Aperture',
   description: 'The Aperture camera widget library for GTK',
-  filebase: libaperture_pc_name,
+  filebase: aperture_library_name,
   requires: libaperture_deps,
   libraries: libm
 )

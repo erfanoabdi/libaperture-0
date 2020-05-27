@@ -19,7 +19,8 @@
  */
 
 /**
- * SECTION:ApertureViewfinder
+ * SECTION:aperture-viewfinder
+ * @title: ApertureViewfinder
  * @short_description: A GTK widget for displaying a camera feed and taking
  * pictures and videos from it
  *
@@ -29,9 +30,7 @@
  * barcodes.
  *
  * #ApertureViewfinder does not contain camera controls, however--just the
- * camera feed. You'll need to build a controls UI yourself. Aperture does
- * contain several helpful components, though. See #ApertureShutterButton and
- * #ApertureGalleryButton.
+ * camera feed. You'll need to build a controls UI yourself.
  */
 
 /**
@@ -53,8 +52,8 @@
 /**
  * ApertureViewfinderError:
  * @APERTURE_VIEWFINDER_ERROR_UNSPECIFIED: An unknown error occurred.
- * @APERTURE_VIEWFINDER_ERROR_BROKEN_PIPELINE: An error occurred somewhere in the GStreamer pipeline.
  * @APERTURE_VIEWFINDER_ERROR_MISSING_PLUGIN: A plugin is missing that is needed to build the GStreamer pipeline. This is probably a software packaging issue.
+ * @APERTURE_VIEWFINDER_ERROR_PIPELINE_ERROR: An error occurred somewhere in the GStreamer pipeline.
  * @APERTURE_VIEWFINDER_ERROR_COULD_NOT_TAKE_PICTURE: The picture could not be taken. It might have been successfully saved to a file, or it might not have.
  *
  * Indicates what type of error occurred.
@@ -63,11 +62,11 @@
  */
 
 
-#include "aperture-private.h"
+#include "private/aperture-private.h"
+#include "private/aperture-device-manager-private.h"
 #include "aperture-utils.h"
 #include "aperture-viewfinder.h"
 #include "aperture-gst-widget.h"
-#include "aperture-device-manager-private.h"
 #include "pipeline/aperture-pipeline-tee.h"
 
 
@@ -169,7 +168,7 @@ create_element (ApertureViewfinder *self, const char *type)
 
   if (element == NULL) {
     g_critical ("Failed to create element %s", type);
-    set_error (self, APERTURE_VIEWFINDER_ERROR_BROKEN_PIPELINE, FALSE);
+    set_error (self, APERTURE_VIEWFINDER_ERROR_MISSING_PLUGIN, FALSE);
   }
 
   return element;
@@ -248,7 +247,7 @@ on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
     /* FIXME: This might actually be a different error. For example, passing
      * an invalid filename to aperture_viewfinder_take_picture_to_file will
      * cause an error here, not in on_finish_taking_picture(). */
-    set_error (self, APERTURE_VIEWFINDER_ERROR_BROKEN_PIPELINE, FALSE);
+    set_error (self, APERTURE_VIEWFINDER_ERROR_PIPELINE_ERROR, FALSE);
     break;
   case GST_MESSAGE_ELEMENT:
     if (gst_message_has_name (message, "image-done")) {
@@ -441,7 +440,7 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
    * emitted.
    *
    * This only works if barcode detection is enabled. See
-   * aperture_barcode_detection_enabled(). If barcode detection is not
+   * aperture_is_barcode_detection_enabled(). If barcode detection is not
    * available, the value of this property will always be %FALSE, even if you
    * try to set it to %TRUE.
    *
@@ -464,7 +463,7 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
    * Emitted when a picture is done being taken.
    *
    * When the signal is emitted, the image will already be saved to the file
-   * that was specified when aperture_viewfinder_take_picture() was called.
+   * that was specified when aperture_viewfinder_take_picture_to_file() was called.
    * You can access that file for more details, but the image is also loaded
    * for you into a pixbuf for easier access.
    *
@@ -486,7 +485,8 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
    * Emitted when a video is done being taken.
    *
    * When the signal is emitted, the video will already be saved to the file
-   * that was specified when aperture_viewfinder_start_recording() was called.
+   * that was specified when aperture_viewfinder_start_recording_to_file() was
+   * called.
    *
    * Since: 0.1
    */
