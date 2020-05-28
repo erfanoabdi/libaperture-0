@@ -7,9 +7,11 @@ insert_final_newline = true
 charset = utf-8
 trim_trailing_whitespace = true
 
-[*.{c,meson,yml}]
+[*.json]
+indent_size=4
+
+[*.{c,h,yml,xml,xml.in,ent.in,ui}]
 indent_size = 2
 
-[*.{vala}]
-indent_size = 4
-
+[meson.build]
+indent_size = 2
