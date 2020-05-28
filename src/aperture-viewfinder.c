@@ -725,7 +725,7 @@ aperture_viewfinder_set_detect_barcodes (ApertureViewfinder *self, gboolean dete
     aperture_pipeline_tee_add_branch (self->tee, GST_ELEMENT (self->branch_zbar));
   } else {
     aperture_pipeline_tee_remove_branch (self->tee, GST_ELEMENT (self->branch_zbar));
-    g_clear_object (&self->branch_zbar);
+    self->branch_zbar = NULL;
   }
 
   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_DETECT_BARCODES]);
