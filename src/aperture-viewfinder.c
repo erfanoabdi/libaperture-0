@@ -66,7 +66,6 @@
 #include "private/aperture-device-manager-private.h"
 #include "aperture-utils.h"
 #include "aperture-viewfinder.h"
-#include "aperture-gst-widget.h"
 #include "pipeline/aperture-pipeline-tee.h"
 
 
@@ -81,7 +80,9 @@ struct _ApertureViewfinder
 
   GstElement *branch_zbar;
 
-  ApertureGstWidget *gst_widget;
+  GstElement *gtksink;
+  GtkWidget *sink_widget;
+
   GstElement *camerabin;
   AperturePipelineTee *tee;
   GstElement *pipeline;
@@ -554,15 +555,16 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
 static void
 aperture_viewfinder_init (ApertureViewfinder *self)
 {
-  GstElement *sink;
-
   aperture_private_ensure_initialized ();
 
-  self->gst_widget = aperture_gst_widget_new ();
-  gtk_widget_set_hexpand (GTK_WIDGET (self->gst_widget), TRUE);
-  gtk_widget_set_vexpand (GTK_WIDGET (self->gst_widget), TRUE);
-  gtk_widget_show (GTK_WIDGET (self->gst_widget));
-  gtk_container_add (GTK_CONTAINER (self), GTK_WIDGET (self->gst_widget));
+  self->gtksink = create_element (self, "gtksink");
+
+  g_object_get (self->gtksink, "widget", &self->sink_widget, NULL);
+  gtk_widget_set_hexpand (self->sink_widget, TRUE);
+  gtk_widget_set_vexpand (self->sink_widget, TRUE);
+  gtk_widget_show (self->sink_widget);
+  gtk_widget_show (self->sink_widget);
+  gtk_container_add (GTK_CONTAINER (self), self->sink_widget);
 
   self->pipeline = gst_pipeline_new (NULL);
   gst_bus_add_watch (gst_pipeline_get_bus (GST_PIPELINE (self->pipeline)), on_bus_message_async, self);
@@ -571,8 +573,7 @@ aperture_viewfinder_init (ApertureViewfinder *self)
 
   self->camerabin = create_element (self, "camerabin");
   g_object_set (self->camerabin, "viewfinder-sink", self->tee, NULL);
-  sink = g_object_ref (aperture_gst_widget_get_sink (self->gst_widget));
-  aperture_pipeline_tee_add_branch (self->tee, sink);
+  aperture_pipeline_tee_add_branch (self->tee, self->gtksink);
   gst_bin_add (GST_BIN (self->pipeline), self->camerabin);
 
   self->camera = -1;
@@ -652,7 +653,7 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera)
   /* Must change camerabin to NULL and back to PLAYING for the change to take
    * effect */
   gst_element_set_state (self->camerabin, GST_STATE_NULL);
-  if (gtk_widget_get_realized (GTK_WIDGET (self->gst_widget))) {
+  if (gtk_widget_get_realized (GTK_WIDGET (self->sink_widget))) {
     gst_element_set_state (self->camerabin, GST_STATE_PLAYING);
   }
 

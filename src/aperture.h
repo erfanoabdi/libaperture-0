@@ -30,7 +30,6 @@
 
 #include "aperture-device-manager.h"
 #include "aperture-enums.h"
-#include "aperture-gst-widget.h"
 #include "aperture-utils.h"
 #include "aperture-viewfinder.h"
 
