@@ -129,9 +129,6 @@ on_switch_camera_clicked (GtkButton *button, ApertureDemoWindow *self)
 
   camera = aperture_device_manager_next_camera (manager, camera);
   aperture_viewfinder_set_camera (self->viewfinder, camera);
-
-  /* NOCOMMIT */
-  aperture_viewfinder_set_detect_barcodes (self->viewfinder, !aperture_viewfinder_get_detect_barcodes (self->viewfinder));
 }
 
 
