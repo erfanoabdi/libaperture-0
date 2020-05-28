@@ -3,7 +3,9 @@ aperture_build_dir = meson.current_build_dir()
 
 # List headers and sources
 libaperture_headers = [
+  'aperture.h',
   'aperture-device-manager.h',
+  'aperture-utils.h',
   'aperture-viewfinder.h'
 ]
 
@@ -23,7 +25,8 @@ libaperture_c_flags = [
   '-Wdeclaration-after-statement',
 ]
 
-libaperture_header_install_dir = get_option('includedir') / 'aperture'
+libaperture_header_install_dir = get_option('includedir') / aperture_library_name
+install_headers(libaperture_headers, install_dir: libaperture_header_install_dir)
 
 libaperture_enum_headers = files(
   'aperture-utils.h',
