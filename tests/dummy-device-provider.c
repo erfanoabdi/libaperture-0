@@ -68,8 +68,6 @@ dummy_device_provider_probe (GstDeviceProvider *self)
 static gboolean
 dummy_device_provider_start (GstDeviceProvider *provider)
 {
-  dummy_device_provider_add (DUMMY_DEVICE_PROVIDER (provider));
-
   return TRUE;
 }
 

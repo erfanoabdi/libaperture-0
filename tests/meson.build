@@ -5,9 +5,22 @@ test_env = [
   'MALLOC_CHECK_=2',
 ]
 
+test_sources = files(
+  'dummy-device.c',
+  'dummy-device-provider.c',
+
+  'main.c',
+
+  'test-barcodes.c',
+  'test-device-manager.c',
+
+  'utils.c',
+)
+
 test_executable = executable('aperture-tests',
-  'test-main.c',
-  dependencies: libaperture_dep
+  test_sources,
+  dependencies: libaperture_dep,
+  install: true,
 )
 
 test('aperture-tests',

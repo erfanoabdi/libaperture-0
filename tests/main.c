@@ -23,36 +23,25 @@
 #include <aperture.h>
 
 #include "private/aperture-private.h"
+#include "private/aperture-device-manager-private.h"
+#include "dummy-device-provider.h"
 
 
-static void
-test_init ()
-{
-  g_assert_false (aperture_is_initialized ());
-  aperture_init (NULL, NULL);
-  g_assert_true (aperture_is_initialized ());
-}
-
-
-static void
-test_barcodes_enum ()
-{
-  g_assert_cmpint (aperture_barcode_type_from_string ("COMPOSITE"), ==, APERTURE_BARCODE_COMPOSITE);
-  g_assert_cmpint (aperture_barcode_type_from_string ("DataBar"), ==, APERTURE_BARCODE_DATABAR);
-  g_assert_cmpint (aperture_barcode_type_from_string ("QR-Code"), ==, APERTURE_BARCODE_QR);
-  g_assert_cmpint (aperture_barcode_type_from_string ("I2/5"), ==, APERTURE_BARCODE_I25);
-  g_assert_cmpint (aperture_barcode_type_from_string ("three zebras walking into a bar"), ==, APERTURE_BARCODE_UNKNOWN);
-}
+void add_barcodes_tests (void);
+void add_device_manager_tests (void);
 
 
 int
 main (int argc, char **argv)
 {
+  aperture_init (&argc, &argv);
   g_test_init (&argc, &argv, NULL);
 
-  g_test_add_func ("/init", test_init);
+  /* Set up the dummy device provider in GStreamer */
+  dummy_device_provider_register ();
 
-  g_test_add_func ("/barcodes/enum", test_barcodes_enum);
+  add_barcodes_tests ();
+  add_device_manager_tests ();
 
   return g_test_run ();
 }
