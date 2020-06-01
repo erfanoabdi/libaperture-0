@@ -21,14 +21,18 @@ fedora:
   stage: build
   script:
     - dnf install -y vala
-    - meson --buildtype=release _build
+    - meson --buildtype=release _build -Db_coverage=true
     - ninja -C _build aperture-doc
     # make sure everything gets built, including VAPI, GIR, etc.
     - ninja -C _build install
+    - ninja -C _build test
+    - ninja -C _build test-coverage
     - mv _build/doc/html/ _reference/
+  coverage: '/^\s+lines\.+:\s+([\d.]+\%)\s+/'
   artifacts:
     paths:
     - _reference
+    - _build
 
 pages:
   stage: publish

@@ -10,7 +10,7 @@ trim_trailing_whitespace = true
 [*.json]
 indent_size=4
 
-[*.{c,h,yml,xml,xml.in,ent.in,ui}]
+[*.{c,h,yml,xml,xml.in,ent.in,ui,sh}]
 indent_size = 2
 
 [meson.build]
