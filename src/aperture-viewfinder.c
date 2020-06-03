@@ -273,6 +273,16 @@ on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
 }
 
 
+static void
+on_camera_added (ApertureViewfinder *self, int camera_index, ApertureDeviceManager *devices)
+{
+  if (self->state == APERTURE_VIEWFINDER_STATE_NO_CAMERAS) {
+    set_state (self, APERTURE_VIEWFINDER_STATE_READY);
+    aperture_viewfinder_set_camera (self, camera_index);
+  }
+}
+
+
 /* Handler for when a camera is removed (unplugged, etc). If that was our
  * current camera, switch to a different camera. */
 static void
@@ -578,6 +588,12 @@ aperture_viewfinder_init (ApertureViewfinder *self)
 
   self->camera = -1;
   self->devices = aperture_device_manager_get_instance ();
+
+  g_signal_connect_object (self->devices,
+                           "camera-added",
+                           G_CALLBACK (on_camera_added),
+                           self,
+                           G_CONNECT_SWAPPED);
 
   g_signal_connect_object (self->devices,
                            "camera-removed",
