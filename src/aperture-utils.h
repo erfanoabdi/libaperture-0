@@ -54,10 +54,11 @@ typedef enum {
 } ApertureBarcode;
 
 
-void     aperture_init                         (int *argc,
-                                                char ***argv);
-gboolean aperture_is_initialized               (void);
-gboolean aperture_is_barcode_detection_enabled (void);
+void            aperture_init                         (int *argc,
+                                                       char ***argv);
+gboolean        aperture_is_initialized               (void);
+gboolean        aperture_is_barcode_detection_enabled (void);
 
+ApertureBarcode aperture_barcode_type_from_string     (const char *string);
 
 G_END_DECLS
