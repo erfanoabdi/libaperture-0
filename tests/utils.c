@@ -35,7 +35,8 @@
  */
 
 
-#include <glib-object.h>
+#include <gtk/gtk.h>
+#include <aperture.h>
 
 #include "utils.h"
 
@@ -43,7 +44,7 @@
 static gboolean
 timeout_reached (TestUtilsCallback *self)
 {
-  g_main_loop_quit (self->loop);
+  gtk_main_quit ();
   g_assert_not_reached ();
   return G_SOURCE_REMOVE;
 }
@@ -53,7 +54,7 @@ void
 testutils_callback_init (TestUtilsCallback *self)
 {
   self->calls = 0;
-  self->loop = NULL;
+  self->loop_running = FALSE;
 }
 
 
@@ -65,15 +66,15 @@ testutils_callback_assert_called (TestUtilsCallback *self, int timeout)
     return;
   }
 
-  self->loop = g_main_loop_new (NULL, FALSE);
+  self->loop_running = TRUE;
   self->timeout_id = g_timeout_add (timeout, G_SOURCE_FUNC (timeout_reached), self);
-  g_main_loop_run (self->loop);
+  gtk_main ();
 
   g_source_remove (self->timeout_id);
 
   g_assert_true (self->calls > 0);
   self->calls --;
-  self->loop = NULL;
+  self->loop_running = FALSE;
 }
 
 
@@ -82,7 +83,31 @@ testutils_callback_call (TestUtilsCallback *self)
 {
   self->calls ++;
 
-  if (self->loop != NULL) {
-    g_main_loop_quit (self->loop);
+  if (self->loop_running) {
+    gtk_main_quit ();
   }
+}
+
+
+/**
+ * PRIVATE:testutils_wait_for_device_added:
+ *
+ * Runs a main loop until an #ApertureDeviceManager emits the
+ * #ApertureDeviceManager::device-added or #ApertureDeviceManager::device-removed
+ * signals.
+ */
+void
+testutils_wait_for_device_change (ApertureDeviceManager *manager)
+{
+  TestUtilsCallback callback;
+  ulong added, removed;
+
+  testutils_callback_init (&callback);
+  added = g_signal_connect_swapped (manager, "camera-added", G_CALLBACK (testutils_callback_call), &callback);
+  removed = g_signal_connect_swapped (manager, "camera-removed", G_CALLBACK (testutils_callback_call), &callback);
+
+  testutils_callback_assert_called (&callback, 1000);
+
+  g_signal_handler_disconnect (manager, added);
+  g_signal_handler_disconnect (manager, removed);
 }

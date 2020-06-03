@@ -20,12 +20,12 @@ fedora:
   image: registry.gitlab.gnome.org/gnome/gtk/fedora-base:v19
   stage: build
   script:
-    - dnf install -y vala
+    - dnf install -y vala gstreamer1-plugins-good-gtk gstreamer1-plugins-bad-free-extras
     - meson --buildtype=release _build -Db_coverage=true
     - ninja -C _build aperture-doc
     # make sure everything gets built, including VAPI, GIR, etc.
     - ninja -C _build install
-    - ninja -C _build test
+    - xvfb-run ninja -C _build test
     - ninja -C _build test-coverage
     - mv _build/doc/html/ _reference/
   coverage: '/^\s+lines\.+:\s+([\d.]+\%)\s+/'

@@ -29,12 +29,14 @@
 
 void add_barcodes_tests (void);
 void add_device_manager_tests (void);
+void add_viewfinder_tests (void);
 
 
 int
 main (int argc, char **argv)
 {
   aperture_init (&argc, &argv);
+  gtk_init (&argc, &argv);
   g_test_init (&argc, &argv, NULL);
 
   /* Set up the dummy device provider in GStreamer */
@@ -42,6 +44,7 @@ main (int argc, char **argv)
 
   add_barcodes_tests ();
   add_device_manager_tests ();
+  add_viewfinder_tests ();
 
   return g_test_run ();
 }

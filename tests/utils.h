@@ -19,23 +19,25 @@
  */
 
 
-#include "glib-object.h"
+#include <aperture.h>
+#include <glib-object.h>
 
 
 G_BEGIN_DECLS
 
 
 typedef struct {
-  GMainLoop *loop;
+  gboolean loop_running;
   int calls;
   uint timeout_id;
 } TestUtilsCallback;
 
 
-void testutils_callback_init          (TestUtilsCallback *self);
-void testutils_callback_assert_called (TestUtilsCallback *self,
-                                       int                timeout);
-void testutils_callback_call          (TestUtilsCallback *self);
+void testutils_callback_init          (TestUtilsCallback     *self);
+void testutils_callback_assert_called (TestUtilsCallback     *self,
+                                       int                    timeout);
+void testutils_callback_call          (TestUtilsCallback     *self);
 
+void testutils_wait_for_device_change (ApertureDeviceManager *manager);
 
 G_END_DECLS
