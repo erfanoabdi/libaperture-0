@@ -96,6 +96,7 @@ endif
 pkgconfig.generate(libaperture_lib,
   name: 'Aperture',
   description: 'The Aperture camera widget library for GTK',
+  subdirs: aperture_library_name,
   filebase: aperture_library_name,
   requires: libaperture_deps,
   libraries: libm
