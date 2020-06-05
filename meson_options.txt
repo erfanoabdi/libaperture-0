@@ -1,2 +1,5 @@
 option('gtk_doc', type: 'boolean', value: true, description: 'Build the documentation')
 option('demo', type: 'boolean', value: true, description: 'Build the demo application')
+
+option('gir', type: 'boolean', value: true, description: 'Build the GObject Introspection bindings')
+option('vapi', type: 'boolean', value: true, description: 'Build the Vala API bindings')

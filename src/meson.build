@@ -64,22 +64,33 @@ libaperture_dep = declare_dependency(
 )
 
 
-# GIR/introspection stuff
-libaperture_gir = gnome.generate_gir(libaperture_lib,
-  sources: libaperture_headers + libaperture_sources,
-  nsversion: aperture_api_version,
-  namespace: 'Aperture',
-  header: 'aperture.h',
-  symbol_prefix: 'aperture',
-  identifier_prefix: 'Aperture',
-  link_with: libaperture_lib,
-  includes: ['Gst-1.0', 'Gtk-3.0'],
-  install: true,
-  extra_args: [
-    '-D_LIBAPERTURE_COMPILATION',
-  ]
-)
+if get_option('gir')
+  # GIR/introspection stuff
+  libaperture_gir = gnome.generate_gir(libaperture_lib,
+    sources: libaperture_headers + libaperture_sources,
+    nsversion: aperture_api_version,
+    export_packages: aperture_library_name,
+    namespace: 'Aperture',
+    header: 'aperture.h',
+    symbol_prefix: 'aperture',
+    identifier_prefix: 'Aperture',
+    link_with: libaperture_lib,
+    includes: ['Gst-1.0', 'Gtk-3.0'],
+    install: true,
+    extra_args: [
+      '-D_LIBAPERTURE_COMPILATION',
+    ]
+  )
 
+  if get_option('vapi')
+    gnome.generate_vapi(aperture_library_name,
+      sources: libaperture_gir[0],
+      packages: [ 'gtk+-3.0', 'gio-2.0', 'gstreamer-1.0' ],
+      install: true,
+      metadata_dirs: [meson.current_source_dir()],
+    )
+  endif
+endif
 
 # Pkg-config file
 pkgconfig.generate(libaperture_lib,

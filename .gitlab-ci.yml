@@ -17,11 +17,14 @@ flatpak:
     BUNDLE: "aperture-demo.flatpak"
 
 fedora:
-  image: registry.gitlab.gnome.org/gnome/gtk/fedora-docs:v19
+  image: registry.gitlab.gnome.org/gnome/gtk/fedora-base:v19
   stage: build
   script:
+    - dnf install -y vala
     - meson --buildtype=release _build
     - ninja -C _build aperture-doc
+    # make sure everything gets built, including VAPI, GIR, etc.
+    - ninja -C _build install
     - mv _build/doc/html/ _reference/
   artifacts:
     paths:
