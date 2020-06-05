@@ -37,8 +37,10 @@ static gboolean init_warning = FALSE;
 
 /**
  * aperture_init:
- * @argc: pointer to the number of command line arguments, or %NULL
- * @argv: pointer to the program's command line arguments, or %NULL
+ * @argc: (inout) (optional): pointer to the number of command line arguments,
+ *        or %NULL
+ * @argv: (array length=argc) (inout) (nullable) (optional) (transfer none):
+ *        pointer to the program's command line arguments, or %NULL
  *
  * Initializes the Aperture library, if it hasn't been initialized already.
  *
