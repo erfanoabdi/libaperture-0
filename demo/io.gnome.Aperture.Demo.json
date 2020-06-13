@@ -37,7 +37,7 @@
                     "type": "git",
                     "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-bad",
                     "branch": "1.16",
-                    "commit": "fe021e5c738dc946b4fb2531edcbeee923884975"
+                    "commit": "0889213e082e2fa3b740de827f8ade6abcd69585"
                 }
             ],
             "modules": [{
