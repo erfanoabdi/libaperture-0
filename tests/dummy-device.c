@@ -19,22 +19,68 @@
  */
 
 
+#include <gtk/gtk.h>
+#include <gst/app/app.h>
+
 #include "dummy-device.h"
 
 
 struct _DummyDevice
 {
   GstDevice parent_instance;
+
+  gchar *image;
 };
 
 G_DEFINE_TYPE (DummyDevice, dummy_device, GST_TYPE_DEVICE)
 
 enum {
   PROP_0,
+  PROP_IMAGE,
   N_PROPS
 };
+static GParamSpec *props[N_PROPS];
 
-static GParamSpec *properties [N_PROPS];
+
+static GstElement *
+create_image_source (const gchar *image)
+{
+  GstElement *bin = gst_bin_new (NULL);
+  g_autoptr(GstPad) pad = NULL;
+  GstPad *ghost_pad;
+
+  GBytes *buffer_bytes;
+  gsize buf_size;
+  GstBuffer *buffer;
+  gpointer buf_raw;
+  GError *error = NULL;
+
+  GstElement *appsrc;
+  GstElement *decodebin;
+  GstElement *imagefreeze;
+
+  appsrc = gst_element_factory_make ("appsrc", NULL);
+  decodebin = gst_element_factory_make ("pngdec", NULL);
+  imagefreeze = gst_element_factory_make ("imagefreeze", NULL);
+
+  buffer_bytes = g_resources_lookup_data (image, G_RESOURCE_LOOKUP_FLAGS_NONE, &error);
+  g_assert_no_error (error);
+
+  buf_raw = g_bytes_unref_to_data (buffer_bytes, &buf_size);
+  buffer = gst_buffer_new_wrapped (buf_raw, buf_size);
+
+  gst_app_src_push_buffer (GST_APP_SRC (appsrc), buffer);
+
+  gst_bin_add_many (GST_BIN (bin), appsrc, decodebin, imagefreeze, NULL);
+  gst_element_link_many (appsrc, decodebin, imagefreeze, NULL);
+
+  pad = gst_element_get_static_pad (imagefreeze, "src");
+  ghost_pad = gst_ghost_pad_new ("src", pad);
+  gst_pad_set_active (ghost_pad, TRUE);
+  gst_element_add_pad (bin, ghost_pad);
+
+  return bin;
+}
 
 
 /* VFUNCS */
@@ -44,6 +90,8 @@ static void
 dummy_device_finalize (GObject *object)
 {
   DummyDevice *self = (DummyDevice *)object;
+
+  g_free (self->image);
 
   G_OBJECT_CLASS (dummy_device_parent_class)->finalize (object);
 }
@@ -58,6 +106,8 @@ dummy_device_get_property (GObject    *object,
   DummyDevice *self = DUMMY_DEVICE (object);
 
   switch (prop_id) {
+  case PROP_IMAGE:
+    g_value_set_string (value, dummy_device_get_image (self));
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
   }
@@ -73,6 +123,9 @@ dummy_device_set_property (GObject      *object,
   DummyDevice *self = DUMMY_DEVICE (object);
 
   switch (prop_id) {
+  case PROP_IMAGE:
+    dummy_device_set_image (self, g_value_get_string (value));
+    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
   }
@@ -82,9 +135,19 @@ dummy_device_set_property (GObject      *object,
 static GstElement *
 dummy_device_create_element (GstDevice *device, const char *name)
 {
-  GstElement *element = gst_element_factory_make ("videotestsrc", NULL);
-  g_object_set (element, "pattern", 18, NULL);
-  return element;
+  DummyDevice *self;
+  GstElement *element = NULL;
+
+  g_return_val_if_fail (DUMMY_IS_DEVICE (device), NULL);
+  self = DUMMY_DEVICE (device);
+
+  if (self->image) {
+    return create_image_source (self->image);
+  } else {
+    element = gst_element_factory_make ("videotestsrc", NULL);
+    g_object_set (element, "pattern", 18, NULL);
+    return element;
+  }
 }
 
 
@@ -102,6 +165,13 @@ dummy_device_class_init (DummyDeviceClass *klass)
   object_class->set_property = dummy_device_set_property;
 
   device_class->create_element = dummy_device_create_element;
+
+  props [PROP_IMAGE] =
+    g_param_spec_string ("image",
+                         "Pixbuf",
+                         "Image to use instead of test stream",
+                         NULL,
+                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_EXPLICIT_NOTIFY);
 }
 
 
@@ -133,3 +203,19 @@ dummy_device_new (void)
                        NULL);
 }
 
+
+const char *
+dummy_device_get_image (DummyDevice *self)
+{
+  return self->image;
+}
+
+
+void
+dummy_device_set_image (DummyDevice *self, const char *image)
+{
+  g_return_if_fail (DUMMY_IS_DEVICE (self));
+
+  g_clear_pointer (&self->image, g_free);
+  self->image = g_strdup (image);
+}

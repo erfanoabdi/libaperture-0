@@ -22,6 +22,9 @@
 #include <glib.h>
 #include <aperture.h>
 
+#include "utils.h"
+#include "dummy-device-provider.h"
+
 
 static void
 test_barcodes_enum ()
@@ -34,8 +37,60 @@ test_barcodes_enum ()
 }
 
 
+static void
+test_barcodes_enabled ()
+{
+  g_test_summary ("Test that barcode detection is enabled in the test environment");
+
+  g_assert_true (aperture_is_barcode_detection_enabled ());
+}
+
+
+static void
+barcode_detected_cb (TestUtilsCallback *cb, ApertureBarcode barcode, char *data)
+{
+  g_assert_cmpstr (data, ==, "hello world");
+  g_assert_cmpint (barcode, ==, APERTURE_BARCODE_QR);
+  testutils_callback_call (cb);
+}
+
+
+static void
+test_barcodes_detection ()
+{
+  g_autoptr(DummyDeviceProvider) provider = DUMMY_DEVICE_PROVIDER (gst_device_provider_factory_get_by_name ("dummy-device-provider"));
+  ApertureViewfinder *viewfinder;
+  GtkWidget *window;
+  TestUtilsCallback detected_callback;
+  DummyDevice *device;
+
+  testutils_callback_init (&detected_callback);
+
+  device = dummy_device_provider_add (provider);
+  dummy_device_set_image (device, "/aperture/helloworld.png");
+
+  viewfinder = aperture_viewfinder_new ();
+  g_signal_connect_swapped (viewfinder, "barcode-detected", G_CALLBACK (barcode_detected_cb), &detected_callback);
+
+  aperture_viewfinder_set_detect_barcodes (viewfinder, TRUE);
+  /* make sure that worked */
+  g_assert_true (aperture_viewfinder_get_detect_barcodes (viewfinder));
+
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (viewfinder));
+
+  gtk_widget_show_all (window);
+
+  testutils_callback_assert_called (&detected_callback, 1000);
+
+  gtk_widget_destroy (window);
+}
+
+
 void
 add_barcodes_tests ()
 {
   g_test_add_func ("/barcodes/enum", test_barcodes_enum);
+  g_test_add_func ("/barcodes/enabled", test_barcodes_enabled);
+  g_test_add_func ("/barcodes/detection", test_barcodes_detection);
 }

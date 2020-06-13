@@ -32,7 +32,10 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (DummyDevice, dummy_device, DUMMY, DEVICE, GstDevice)
 
 
-DummyDevice *dummy_device_new (void);
+DummyDevice *dummy_device_new       (void);
 
+const char  *dummy_device_get_image (DummyDevice *self);
+void         dummy_device_set_image (DummyDevice *self,
+                                     const char  *image);
 
 G_END_DECLS

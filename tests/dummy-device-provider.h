@@ -22,6 +22,7 @@
 #pragma once
 
 #include <gst/gst.h>
+#include "dummy-device.h"
 
 
 G_BEGIN_DECLS
@@ -34,7 +35,7 @@ G_DECLARE_FINAL_TYPE (DummyDeviceProvider, dummy_device_provider, DUMMY, DEVICE_
 
 DummyDeviceProvider *dummy_device_provider_new      (void);
 
-void                 dummy_device_provider_add      (DummyDeviceProvider *self);
+DummyDevice         *dummy_device_provider_add      (DummyDeviceProvider *self);
 void                 dummy_device_provider_remove   (DummyDeviceProvider *self);
 
 void                 dummy_device_provider_register (void);

@@ -40,7 +40,7 @@ enum {
 static GParamSpec *properties [N_PROPS];
 
 
-void dummy_device_provider_add (DummyDeviceProvider *self);
+DummyDevice *dummy_device_provider_add (DummyDeviceProvider *self);
 void dummy_device_provider_remove (DummyDeviceProvider *self);
 
 
@@ -139,17 +139,21 @@ dummy_device_provider_new (void)
  * Note that the device manager starts with one device by default, so this is
  * unnecessary unless you're testing adding and removing devices, or testing
  * multiple devices.
+ *
+ * Returns: (transfer none): the new device
  */
-void
+DummyDevice *
 dummy_device_provider_add (DummyDeviceProvider *self)
 {
   DummyDevice *device;
 
-  g_return_if_fail (DUMMY_IS_DEVICE_PROVIDER (self));
+  g_return_val_if_fail (DUMMY_IS_DEVICE_PROVIDER (self), NULL);
 
   device = dummy_device_new ();
   gst_device_provider_device_add (GST_DEVICE_PROVIDER (self), GST_DEVICE (device));
   self->devices = g_list_prepend (self->devices, device);
+
+  return device;
 }
 
 
