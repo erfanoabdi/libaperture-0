@@ -33,6 +33,41 @@ struct _AperturePipelineTee
 G_DEFINE_TYPE (AperturePipelineTee, aperture_pipeline_tee, GST_TYPE_BIN)
 
 
+/* Used for transferring data into a pad probe */
+typedef struct {
+  AperturePipelineTee *self;
+  GstElement *branch;
+  GstElement *queue;
+  GstPad *tee_pad;
+} RemoveBranchProbeData;
+
+
+static void
+pad_probe_async_func (GstElement *element, gpointer user_data)
+{
+  RemoveBranchProbeData *probe = user_data;
+
+  gst_element_release_request_pad (probe->self->tee, probe->tee_pad);
+
+  gst_element_set_state (probe->branch, GST_STATE_NULL);
+  gst_element_set_state (probe->queue, GST_STATE_NULL);
+
+  gst_bin_remove (GST_BIN (probe->self), probe->queue);
+  gst_bin_remove (GST_BIN (probe->self), probe->branch);
+}
+
+
+static GstPadProbeReturn
+pad_probe (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
+{
+  RemoveBranchProbeData *probe = user_data;
+
+  gst_element_call_async (probe->self->tee, pad_probe_async_func, user_data, g_free);
+
+  return GST_PAD_PROBE_REMOVE;
+}
+
+
 /* VFUNCS */
 
 
@@ -140,6 +175,7 @@ void
 aperture_pipeline_tee_remove_branch (AperturePipelineTee *self, GstElement *branch)
 {
   GstElement *queue;
+  RemoveBranchProbeData *data;
   g_autoptr(GstPad) tee_pad = NULL;
   g_autoptr(GstPad) queue_pad = NULL;
 
@@ -148,18 +184,15 @@ aperture_pipeline_tee_remove_branch (AperturePipelineTee *self, GstElement *bran
   g_return_if_fail (g_hash_table_contains (self->queues, branch));
 
   queue = g_hash_table_lookup (self->queues, branch);
+  g_hash_table_remove (self->queues, branch);
 
   queue_pad = gst_element_get_static_pad (queue, "sink");
   tee_pad = gst_pad_get_peer (queue_pad);
-  gst_element_release_request_pad (self->tee, tee_pad);
 
-  gst_element_set_state (queue, GST_STATE_NULL);
-  gst_element_set_state (branch, GST_STATE_NULL);
-
-  gst_element_unlink (self->tee, queue);
-
-  gst_bin_remove (GST_BIN (self), queue);
-  gst_bin_remove (GST_BIN (self), branch);
-
-  g_hash_table_remove (self->queues, branch);
+  data = g_new (RemoveBranchProbeData, 1);
+  data->self = self;
+  data->queue = queue;
+  data->branch = branch;
+  data->tee_pad = tee_pad;
+  gst_pad_add_probe (tee_pad, GST_PAD_PROBE_TYPE_BLOCK_DOWNSTREAM, pad_probe, data, NULL);
 }
