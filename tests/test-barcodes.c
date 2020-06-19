@@ -83,6 +83,10 @@ test_barcodes_detection ()
 
   testutils_callback_assert_called (&detected_callback, 1000);
 
+  aperture_viewfinder_set_detect_barcodes (viewfinder, FALSE);
+  aperture_viewfinder_set_detect_barcodes (viewfinder, TRUE);
+  testutils_callback_assert_called (&detected_callback, 1000);
+
   gtk_widget_destroy (window);
 }
 
