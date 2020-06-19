@@ -8,6 +8,7 @@ libaperture_headers = [
   'aperture-utils.h',
   'aperture-viewfinder.h'
 ]
+libaperture_generated_headers = []
 
 libaperture_sources = files(
   'pipeline/aperture-pipeline-tee.c',
@@ -16,6 +17,7 @@ libaperture_sources = files(
   'aperture-utils.c',
   'aperture-viewfinder.c',
 )
+
 
 
 libaperture_c_flags = [
@@ -44,6 +46,7 @@ libaperture_enums = gnome.mkenums_simple('aperture-enums',
 )
 libaperture_sources += libaperture_enums[0]
 libaperture_headers += libaperture_enums[1]
+libaperture_generated_headers += libaperture_enums[1]
 
 
 # Create the library
@@ -58,6 +61,7 @@ libaperture_lib = shared_library(aperture_library_name,
 
 # Create a dependency to use later
 libaperture_dep = declare_dependency(
+  sources: libaperture_headers,
   link_with: libaperture_lib,
   include_directories: include_directories('.', '..'),
   dependencies: libaperture_deps,
