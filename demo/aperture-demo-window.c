@@ -32,6 +32,9 @@ struct _ApertureDemoWindow
   GtkStack *controls_stack;
   GtkStack *no_cameras_stack;
   GtkButton *switch_camera;
+
+  gboolean recording;
+  gboolean taking_picture;
 };
 
 G_DEFINE_TYPE (ApertureDemoWindow, aperture_demo_window, GTK_TYPE_APPLICATION_WINDOW)
@@ -63,21 +66,20 @@ get_file (GUserDirectory user_dir, gchar *extension)
 
 
 static void
-on_viewfinder_state_notify (ApertureDemoWindow *self)
+update_ui (ApertureDemoWindow *self)
 {
-  /* Update the UI depending on the state of the viewfinder.
+  /* Update the UI depending on the state of the viewfinder and the current
+   * operation.
+   *
    * If it's recording, show the stop button, otherwise show the regular
    * controls. If it's not in the READY state, make the controls insensitive
    * so they can't be used. If there are no cameras, show that screen
    * instead. */
 
   ApertureViewfinderState state = aperture_viewfinder_get_state (self->viewfinder);
-  gtk_widget_set_sensitive (self->controls, state == APERTURE_VIEWFINDER_STATE_READY);
+  gtk_widget_set_sensitive (self->controls, state == APERTURE_VIEWFINDER_STATE_READY && !(self->recording || self->taking_picture));
 
-  gtk_stack_set_visible_child_name (self->controls_stack,
-                                    state == APERTURE_VIEWFINDER_STATE_RECORDING
-                                      ? "video"
-                                      : "main");
+  gtk_stack_set_visible_child_name (self->controls_stack, self->recording ? "video" : "main");
 
   gtk_stack_set_visible_child_name (self->no_cameras_stack,
                                     state == APERTURE_VIEWFINDER_STATE_NO_CAMERAS
@@ -87,10 +89,41 @@ on_viewfinder_state_notify (ApertureDemoWindow *self)
 
 
 static void
-on_take_photo_clicked (GtkButton *button, ApertureDemoWindow *self)
+on_viewfinder_state_notify (ApertureDemoWindow *self)
+{
+  update_ui (self);
+}
+
+
+static void
+on_photo_taken (ApertureViewfinder *source, GAsyncResult *res, ApertureDemoWindow *self)
 {
   g_autofree char *file = get_file (G_USER_DIRECTORY_PICTURES, "jpg");
-  aperture_viewfinder_take_picture_to_file (self->viewfinder, file);
+  g_autoptr(GError) err = NULL;
+  g_autoptr(GdkPixbuf) pixbuf = aperture_viewfinder_take_picture_finish (source, res, &err);
+
+  if (err) {
+    g_critical ("%s", err->message);
+  } else {
+    gdk_pixbuf_save (pixbuf, file, "jpeg", &err, NULL);
+    if (err) {
+      g_critical ("%s", err->message);
+    } else {
+      g_debug ("Saved picture to %s", (char *) file);
+    }
+  }
+
+  self->taking_picture = FALSE;
+  update_ui (self);
+}
+
+
+static void
+on_take_photo_clicked (GtkButton *button, ApertureDemoWindow *self)
+{
+  self->taking_picture = TRUE;
+  update_ui (self);
+  aperture_viewfinder_take_picture_async (self->viewfinder, NULL, (GAsyncReadyCallback) on_photo_taken, self);
 }
 
 
@@ -98,14 +131,31 @@ static void
 on_take_video_clicked (GtkButton *button, ApertureDemoWindow *self)
 {
   g_autofree char *file = get_file (G_USER_DIRECTORY_VIDEOS, "mp4");
-  aperture_viewfinder_start_recording_to_file (self->viewfinder, file);
+  g_autoptr(GError) err = NULL;
+
+  self->recording = TRUE;
+  update_ui (self);
+
+  aperture_viewfinder_start_recording_to_file (self->viewfinder, file, &err);
+
+  if (err) {
+    g_critical ("%s", err->message);
+  }
+}
+
+
+static void
+on_video_done (ApertureViewfinder *source, GAsyncResult *res, ApertureDemoWindow *self)
+{
+  self->recording = FALSE;
+  update_ui (self);
 }
 
 
 static void
 on_stop_video_clicked (GtkButton *button, ApertureDemoWindow *self)
 {
-  aperture_viewfinder_stop_recording (self->viewfinder);
+  aperture_viewfinder_stop_recording_async (self->viewfinder, NULL, (GAsyncReadyCallback) on_video_done, self);
 }
 
 
@@ -126,9 +176,14 @@ on_switch_camera_clicked (GtkButton *button, ApertureDemoWindow *self)
 
   int camera = aperture_viewfinder_get_camera (self->viewfinder);
   g_autoptr(ApertureDeviceManager) manager = aperture_device_manager_get_instance ();
+  g_autoptr(GError) err = NULL;
 
   camera = aperture_device_manager_next_camera (manager, camera);
-  aperture_viewfinder_set_camera (self->viewfinder, camera);
+  aperture_viewfinder_set_camera (self->viewfinder, camera, &err);
+
+  if (err) {
+    g_critical ("%s", err->message);
+  }
 }
 
 
@@ -176,3 +231,4 @@ aperture_demo_window_new (GtkApplication *app)
 
   return g_object_new (APERTURE_TYPE_DEMO_WINDOW, "application", app, NULL);
 }
+

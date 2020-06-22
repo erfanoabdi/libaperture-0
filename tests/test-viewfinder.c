@@ -32,7 +32,7 @@ test_viewfinder_no_camera_state ()
 {
   g_autoptr(ApertureDeviceManager) manager = aperture_device_manager_get_instance ();
   g_autoptr(DummyDeviceProvider) provider = DUMMY_DEVICE_PROVIDER (gst_device_provider_factory_get_by_name ("dummy-device-provider"));
-  g_autoptr(ApertureViewfinder) viewfinder;
+  g_autoptr(ApertureViewfinder) viewfinder = NULL;
 
   /* make sure there are no cameras to start */
   g_assert_cmpint (aperture_device_manager_get_num_cameras (manager), ==, 0);

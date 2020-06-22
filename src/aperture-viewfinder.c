@@ -37,8 +37,6 @@
  * ApertureViewfinderState:
  * @APERTURE_VIEWFINDER_STATE_LOADING: The #ApertureViewfinder is still loading.
  * @APERTURE_VIEWFINDER_STATE_READY: The #ApertureViewfinder is ready to be used.
- * @APERTURE_VIEWFINDER_STATE_RECORDING: The #ApertureViewfinder is recording a video.
- * @APERTURE_VIEWFINDER_STATE_TAKING_PICTURE: The #ApertureViewfinder is taking a picture.
  * @APERTURE_VIEWFINDER_STATE_NO_CAMERAS: The #ApertureViewfinder could not find any cameras to use.
  * @APERTURE_VIEWFINDER_STATE_ERROR: An error has occurred and the viewfinder is not usable.
  *
@@ -50,16 +48,28 @@
  */
 
 /**
- * ApertureViewfinderError:
- * @APERTURE_VIEWFINDER_ERROR_UNSPECIFIED: An unknown error occurred.
- * @APERTURE_VIEWFINDER_ERROR_MISSING_PLUGIN: A plugin is missing that is needed to build the GStreamer pipeline. This is probably a software packaging issue.
- * @APERTURE_VIEWFINDER_ERROR_PIPELINE_ERROR: An error occurred somewhere in the GStreamer pipeline.
- * @APERTURE_VIEWFINDER_ERROR_COULD_NOT_TAKE_PICTURE: The picture could not be taken. It might have been successfully saved to a file, or it might not have.
+ * APERTURE_MEDIA_CAPTURE_ERROR:
  *
- * Indicates what type of error occurred.
+ * Error domain for errors that occur while using an #ApertureViewfinder.
+ */
+
+/**
+ * ApertureMediaCaptureError:
+ * @APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS: Another operation is in progress. Wait for it to finish before starting another operation.
+ * @APERTURE_MEDIA_CAPTURE_ERROR_NO_RECORDING_TO_STOP: There is no recording to stop (applies to aperture_viewfinder_stop_recording_async()).
+ * @APERTURE_MEDIA_CAPTURE_ERROR_CAMERA_DISCONNECTED: The active camera was disconnected during the operation.
+ * @APERTURE_MEDIA_CAPTURE_ERROR_INTERRUPTED: The operation was interrupted by an unknown error.
+ * @APERTURE_MEDIA_CAPTURE_ERROR_NOT_READY: The viewfinder is not in the %APERTURE_VIEWFINDER_STATE_READY #ApertureViewfinder:state.
+ *
+ * Indicates the error that caused an operation to fail.
+ *
+ * Note that functions might set errors from other domains as well. For
+ * example, if an error occurs in the GStreamer pipeline during the operation,
+ * that error will be passed directly to your async handler.
  *
  * Since: 0.1
  */
+
 
 
 #include "private/aperture-private.h"
@@ -68,6 +78,11 @@
 #include "aperture-viewfinder.h"
 #include "pipeline/aperture-pipeline-tee.h"
 
+typedef struct {
+  GstElement *bin;
+  GstElement *valve;
+  GstElement *gdkpixbufsink;
+} ApertureViewfinderPhotoCapture;
 
 struct _ApertureViewfinder
 {
@@ -86,6 +101,13 @@ struct _ApertureViewfinder
   GstElement *camerabin;
   AperturePipelineTee *tee;
   GstElement *pipeline;
+
+  GTask *task_take_picture;
+
+  gboolean recording_video;
+  GTask *task_take_video;
+
+  ApertureViewfinderPhotoCapture capture;
 };
 
 G_DEFINE_TYPE (ApertureViewfinder, aperture_viewfinder, GTK_TYPE_BIN)
@@ -100,13 +122,86 @@ enum {
 static GParamSpec *props[N_PROPS];
 
 enum {
-  SIGNAL_PICTURE_TAKEN,
-  SIGNAL_VIDEO_TAKEN,
   SIGNAL_BARCODE_DETECTED,
-  SIGNAL_ERROR,
   N_SIGNALS,
 };
 static guint signals[N_SIGNALS];
+
+
+static void
+end_take_photo_operation (ApertureViewfinder *self)
+{
+  g_clear_object (&self->task_take_picture);
+}
+
+
+static void
+end_take_video_operation (ApertureViewfinder *self)
+{
+  self->recording_video = FALSE;
+  g_clear_object (&self->task_take_video);
+}
+
+
+/* Cancels any ongoing operations. Called when an error occurs, or when the
+ * current camera is unplugged. @err is copied, so you still need to unref it
+ * afterward. */
+static void
+cancel_current_operation (ApertureViewfinder *self, GError *err)
+{
+  if (self->task_take_picture) {
+    g_task_return_error (self->task_take_picture, g_error_copy (err));
+    end_take_photo_operation (self);
+  } else if (self->task_take_video) {
+    g_task_return_error (self->task_take_video, g_error_copy (err));
+    end_take_video_operation (self);
+  }
+}
+
+
+static void
+set_state (ApertureViewfinder *self, ApertureViewfinderState state)
+{
+  g_autoptr(GError) err = NULL;
+
+  if (self->state == state) {
+    return;
+  }
+
+  if (state != APERTURE_VIEWFINDER_STATE_READY) {
+    if (state == APERTURE_VIEWFINDER_STATE_NO_CAMERAS) {
+      err = g_error_new (APERTURE_MEDIA_CAPTURE_ERROR,
+                         APERTURE_MEDIA_CAPTURE_ERROR_CAMERA_DISCONNECTED,
+                         "The active camera was disconnected during the operation");
+    } else {
+      err = g_error_new (APERTURE_MEDIA_CAPTURE_ERROR,
+                         APERTURE_MEDIA_CAPTURE_ERROR_INTERRUPTED,
+                         "An error occurred during the operation");
+    }
+
+    cancel_current_operation (self, err);
+  }
+
+  self->state = state;
+  g_object_notify_by_pspec (G_OBJECT (self), props[PROP_STATE]);
+}
+
+
+/* Creates an element. Puts the viewfinder in the error state if that fails.
+ * Thus, should only be used where the viewfinder doesn't work without the
+ * element (otherwise, use gst_element_factory_make()). */
+static GstElement *
+create_element (ApertureViewfinder *self, const char *type)
+{
+  GstElement *element = gst_element_factory_make (type, NULL);
+
+  if (element == NULL) {
+    g_critical ("Element %s is not installed", type);
+    set_state (self, APERTURE_VIEWFINDER_STATE_ERROR);
+  }
+
+  return element;
+}
 
 
 static GstElement *
@@ -139,91 +234,142 @@ create_zbar_bin ()
 
 
 static void
-set_state (ApertureViewfinder *self, ApertureViewfinderState state)
+create_photo_capture_bin (ApertureViewfinder *self, ApertureViewfinderPhotoCapture *result)
 {
-  if (self->state == state) {
+  GstElement *bin = gst_bin_new (NULL);
+  g_autoptr(GstPad) pad = NULL;
+  GstPad *ghost_pad;
+
+  GstElement *valve;
+  GstElement *videoconvert;
+  GstElement *gdkpixbufsink;
+
+  valve = create_element (self, "valve");
+  videoconvert = create_element (self, "videoconvert");
+  gdkpixbufsink = create_element (self, "gdkpixbufsink");
+
+  g_object_set (valve, "drop", FALSE, NULL);
+
+  gst_bin_add_many (GST_BIN (bin), valve, videoconvert, gdkpixbufsink, NULL);
+  gst_element_link_many (valve, videoconvert, gdkpixbufsink, NULL);
+
+  pad = gst_element_get_static_pad (valve, "sink");
+  ghost_pad = gst_ghost_pad_new ("sink", pad);
+  gst_pad_set_active (ghost_pad, TRUE);
+  gst_element_add_pad (bin, ghost_pad);
+
+  result->bin = bin;
+  result->valve = valve;
+  result->gdkpixbufsink = gdkpixbufsink;
+}
+
+
+/* If an operation (take photo, take video, switch camera) is in progress,
+ * set @err. */
+static void
+get_current_operation (ApertureViewfinder *self, GError **err)
+{
+  /* for convenience, do nothing if there's already an error */
+  if (err && *err) {
     return;
   }
 
-  self->state = state;
-  g_object_notify_by_pspec (G_OBJECT (self), props[PROP_STATE]);
+  if (self->task_take_picture) {
+    g_set_error (err,
+                 APERTURE_MEDIA_CAPTURE_ERROR,
+                 APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS,
+                 "Operation in progress: Take picture");
+  } else if (self->task_take_video || self->recording_video) {
+    g_set_error (err,
+                 APERTURE_MEDIA_CAPTURE_ERROR,
+                 APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS,
+                 "Operation in progress: Video recording");
+  }
 }
 
 
 static void
-set_error (ApertureViewfinder *self, ApertureViewfinderError error, gboolean recoverable)
+set_error_if_not_ready (ApertureViewfinder *self, GError **err)
 {
-  if (!recoverable) {
+  /* for convenience, do nothing if there's already an error */
+  if (err && *err) {
+    return;
+  }
+
+  if (aperture_viewfinder_get_state (self) != APERTURE_VIEWFINDER_STATE_READY) {
+    g_set_error (err,
+                 APERTURE_MEDIA_CAPTURE_ERROR,
+                 APERTURE_MEDIA_CAPTURE_ERROR_NOT_READY,
+                 "The viewfinder is not in the READY state.");
+  }
+}
+
+
+static void
+on_pipeline_error (ApertureViewfinder *self, GstMessage *message)
+{
+  g_autoptr(GError) err = NULL;
+  g_autofree char *debug_info = NULL;
+
+  gst_message_parse_error (message, &err, &debug_info);
+  g_prefix_error (&err, "Error received from element %s: ", message->src->name);
+
+  cancel_current_operation (self, err);
+  g_debug ("Debugging information: %s", debug_info ? debug_info : "none");
+
+  if (GST_ELEMENT (self->camerabin)->current_state != GST_STATE_PLAYING) {
     set_state (self, APERTURE_VIEWFINDER_STATE_ERROR);
+    g_critical ("%s", err->message);
   }
-
-  g_signal_emit (self, signals[SIGNAL_ERROR], 0, error, recoverable);
-}
-
-
-/* Creates an element. Puts the viewfinder in the error state if that fails. */
-static GstElement *
-create_element (ApertureViewfinder *self, const char *type)
-{
-  GstElement *element = gst_element_factory_make (type, NULL);
-
-  if (element == NULL) {
-    g_critical ("Failed to create element %s", type);
-    set_error (self, APERTURE_VIEWFINDER_ERROR_MISSING_PLUGIN, FALSE);
-  }
-
-  return element;
 }
 
 
 static void
-on_finish_taking_picture_on_new_pixbuf (GObject *source, GAsyncResult *res, gpointer user_data)
+on_gdk_pixbuf_preroll (ApertureViewfinder *self)
 {
-  ApertureViewfinder *self = APERTURE_VIEWFINDER (user_data);
-  g_autoptr(GError) err = NULL;
-  g_autoptr(GdkPixbuf) pixbuf = gdk_pixbuf_new_from_stream_finish (res, &err);
-
-  set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-
-  if (err) {
-    g_critical ("Could not take picture: %s", err->message);
-    set_error (self, APERTURE_VIEWFINDER_ERROR_COULD_NOT_TAKE_PICTURE, TRUE);
-    return;
-  }
-
-  g_signal_emit (self, signals[SIGNAL_PICTURE_TAKEN], 0, pixbuf);
+  g_object_set (self->capture.valve, "drop", TRUE, NULL);
 }
 
 
 static void
-on_finish_taking_picture_on_file_read (GObject *source, GAsyncResult *res, gpointer user_data)
+on_gdk_pixbuf (ApertureViewfinder *self, GstMessage *message)
 {
-  GFile *file = G_FILE (source);
-  ApertureViewfinder *self = APERTURE_VIEWFINDER (user_data);
-  g_autoptr(GError) err = NULL;
-  g_autoptr(GFileInputStream) stream = g_file_read_finish (file, res, &err);
+  const GstStructure *structure = gst_message_get_structure (message);
+  GdkPixbuf *pixbuf;
 
-  if (err) {
-    g_critical ("Could not take picture: %s", err->message);
-    set_error (self, APERTURE_VIEWFINDER_ERROR_COULD_NOT_TAKE_PICTURE, TRUE);
-    return;
+  if (self->task_take_picture) {
+    gst_structure_get (structure, "pixbuf", GDK_TYPE_PIXBUF, &pixbuf, NULL);
+
+    g_task_return_pointer (self->task_take_picture, pixbuf, g_object_unref);
+    end_take_photo_operation (self);
+
+    g_object_set (self->capture.valve, "drop", TRUE, NULL);
   }
-
-  gdk_pixbuf_new_from_stream_async (G_INPUT_STREAM (stream), NULL, on_finish_taking_picture_on_new_pixbuf, self);
 }
 
 
-/* Called when a picture has been taken on the pipeline. Reads the picture from
- * the file it was saved to and then emits ::picture-taken */
 static void
-on_finish_taking_picture (ApertureViewfinder *self)
+on_video_done (ApertureViewfinder *self)
 {
-  g_autofree char *file_location = NULL;
-  g_autoptr(GFile) file = NULL;
+  g_task_return_boolean (self->task_take_video, TRUE);
+  end_take_video_operation (self);
+}
 
-  g_object_get (self->camerabin, "location", &file_location, NULL);
-  file = g_file_new_for_path (file_location);
-  g_file_read_async (file, G_PRIORITY_DEFAULT, NULL, on_finish_taking_picture_on_file_read, self);
+
+static void
+on_barcode_detected (ApertureViewfinder *self, GstMessage *message)
+{
+  const char *code_type_str = NULL;
+  ApertureBarcode code_type;
+  const char *data = NULL;
+  const GstStructure *structure;
+
+  structure = gst_message_get_structure (message);
+  code_type_str = gst_structure_get_string (structure, "type");
+  code_type = aperture_barcode_type_from_string (code_type_str);
+  data = gst_structure_get_string (structure, "symbol");
+
+  g_signal_emit (self, signals[SIGNAL_BARCODE_DETECTED], 0, code_type, data);
 }
 
 
@@ -232,39 +378,24 @@ static gboolean
 on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
 {
   ApertureViewfinder *self = APERTURE_VIEWFINDER (user_data);
-  g_autoptr(GError) err = NULL;
-  g_autofree char *debug_info = NULL;
-  const char *code_type_str = NULL;
-  ApertureBarcode code_type;
-  const char *data = NULL;
-  const GstStructure *structure;
 
   switch (message->type) {
   case GST_MESSAGE_ERROR:
-    gst_message_parse_error (message, &err, &debug_info);
-    g_critical ("Error received from element %s: %s", message->src->name, err->message);
-    g_debug ("Debugging information: %s", debug_info ? debug_info : "none");
-
-    /* FIXME: This might actually be a different error. For example, passing
-     * an invalid filename to aperture_viewfinder_take_picture_to_file will
-     * cause an error here, not in on_finish_taking_picture(). */
-    set_error (self, APERTURE_VIEWFINDER_ERROR_PIPELINE_ERROR, FALSE);
+    on_pipeline_error (self, message);
     break;
-  case GST_MESSAGE_ELEMENT:
-    if (gst_message_has_name (message, "image-done")) {
-      on_finish_taking_picture (self);
-    } else if (gst_message_has_name (message, "video-done")) {
-      set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-      g_signal_emit (self, signals[SIGNAL_VIDEO_TAKEN], 0);
-    } else if (gst_message_has_name (message, "barcode")) {
-      structure = gst_message_get_structure (message);
-      code_type_str = gst_structure_get_string (structure, "type");
-      code_type = aperture_barcode_type_from_string (code_type_str);
-      data = gst_structure_get_string (structure, "symbol");
 
-      g_signal_emit (self, signals[SIGNAL_BARCODE_DETECTED], 0, code_type, data);
+  case GST_MESSAGE_ELEMENT:
+    if (gst_message_has_name (message, "pixbuf")) {
+      on_gdk_pixbuf (self, message);
+    } else if (gst_message_has_name (message, "preroll-pixbuf")) {
+      on_gdk_pixbuf_preroll (self);
+    } else if (gst_message_has_name (message, "video-done")) {
+      on_video_done (self);
+    } else if (gst_message_has_name (message, "barcode")) {
+      on_barcode_detected (self, message);
     }
     break;
+
   default:
     break;
   }
@@ -278,7 +409,7 @@ on_camera_added (ApertureViewfinder *self, int camera_index, ApertureDeviceManag
 {
   if (self->state == APERTURE_VIEWFINDER_STATE_NO_CAMERAS) {
     set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-    aperture_viewfinder_set_camera (self, camera_index);
+    aperture_viewfinder_set_camera (self, camera_index, NULL);
   }
 }
 
@@ -288,14 +419,24 @@ on_camera_added (ApertureViewfinder *self, int camera_index, ApertureDeviceManag
 static void
 on_camera_removed (ApertureViewfinder *self, int camera_index, ApertureDeviceManager *devices)
 {
+  g_autoptr(GError) err = NULL;
+
   if (camera_index == self->camera) {
     int num_cameras = aperture_device_manager_get_num_cameras (self->devices);
+
+    /* if the active camera was disconnected, any active operations should be
+     * cancelled */
+    err = g_error_new (APERTURE_MEDIA_CAPTURE_ERROR,
+                       APERTURE_MEDIA_CAPTURE_ERROR_CAMERA_DISCONNECTED,
+                       "The active camera was disconnected during the operation");
+    cancel_current_operation (self, err);
+
     if (num_cameras == 0) {
       set_state (self, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
     } else if (camera_index >= num_cameras) {
-      aperture_viewfinder_set_camera (self, 0);
+      aperture_viewfinder_set_camera (self, 0, NULL);
     } else {
-      aperture_viewfinder_set_camera (self, camera_index);
+      aperture_viewfinder_set_camera (self, camera_index, NULL);
     }
   }
 }
@@ -310,7 +451,7 @@ aperture_viewfinder_finalize (GObject *object)
   ApertureViewfinder *self = APERTURE_VIEWFINDER (object);
 
   g_clear_object (&self->devices);
-  g_clear_object (&self->pipeline);
+  g_clear_object (&self->camerabin);
   g_clear_object (&self->tee);
 
   G_OBJECT_CLASS (aperture_viewfinder_parent_class)->finalize (object);
@@ -351,7 +492,7 @@ aperture_viewfinder_set_property (GObject      *object,
 
   switch (prop_id) {
   case PROP_CAMERA:
-    aperture_viewfinder_set_camera (self, g_value_get_int (value));
+    aperture_viewfinder_set_camera (self, g_value_get_int (value), NULL);
     break;
   case PROP_DETECT_BARCODES:
     aperture_viewfinder_set_detect_barcodes (self, g_value_get_boolean (value));
@@ -370,7 +511,7 @@ aperture_viewfinder_realize (GtkWidget *widget)
 
   GTK_WIDGET_CLASS (aperture_viewfinder_parent_class)->realize (widget);
 
-  gst_element_set_state (self->pipeline, GST_STATE_PLAYING);
+  gst_element_set_state (self->camerabin, GST_STATE_PLAYING);
 }
 
 
@@ -382,7 +523,7 @@ aperture_viewfinder_unrealize (GtkWidget *widget)
 
   GTK_WIDGET_CLASS (aperture_viewfinder_parent_class)->unrealize (widget);
 
-  gst_element_set_state (self->pipeline, GST_STATE_NULL);
+  gst_element_set_state (self->camerabin, GST_STATE_NULL);
 }
 
 
@@ -467,50 +608,6 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
   g_object_class_install_properties (object_class, N_PROPS, props);
 
   /**
-   * ApertureViewfinder::picture-taken:
-   * @self: the #ApertureViewfinder instance
-   * @pixbuf: the image that was taken
-   *
-   * Emitted when a picture is done being taken.
-   *
-   * When the signal is emitted, the image will already be saved to the file
-   * that was specified when aperture_viewfinder_take_picture_to_file() was called.
-   * You can access that file for more details, but the image is also loaded
-   * for you into a pixbuf for easier access.
-   *
-   * Since: 0.1
-   */
-  signals[SIGNAL_PICTURE_TAKEN] =
-    g_signal_new ("picture-taken",
-                  G_TYPE_FROM_CLASS (klass),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE,
-                  1, GDK_TYPE_PIXBUF);
-
-  /**
-   * ApertureViewfinder::video-taken:
-   * @self: the #ApertureViewfinder
-   *
-   * Emitted when a video is done being taken.
-   *
-   * When the signal is emitted, the video will already be saved to the file
-   * that was specified when aperture_viewfinder_start_recording_to_file() was
-   * called.
-   *
-   * Since: 0.1
-   */
-  signals[SIGNAL_VIDEO_TAKEN] =
-    g_signal_new ("video-taken",
-                  G_TYPE_FROM_CLASS (klass),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE,
-                  0);
-
-  /**
    * ApertureViewfinder::barcode-detected:
    * @self: the #ApertureViewfinder
    * @barcode_type: the type of barcode
@@ -533,32 +630,6 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
                   NULL, NULL, NULL,
                   G_TYPE_NONE,
                   2, APERTURE_TYPE_BARCODE, G_TYPE_STRING);
-
-  /**
-   * ApertureViewfinder::error:
-   * @self: the #ApertureViewfinder
-   * @error: the type of error
-   * @recoverable: %TRUE if the viewfinder can still be used, otherwise %FALSE
-   *
-   * Emitted whenever an error occurs.
-   *
-   * Sometimes errors are recoverable, meaning the viewfinder is still usable,
-   * at least partially. (For example, if a picture is taken but the storage
-   * destination is out of space, you could still take a picture and save it
-   * elsewhere). If the error was not recoverable, #ApertureViewfinder:state
-   * will be %APERTURE_VIEWFINDER_STATE_ERROR and @recoverable will be %FALSE.
-   * Do not try to use a viewfinder in that state.
-   *
-   * Since: 0.1
-   */
-  signals[SIGNAL_ERROR] =
-    g_signal_new ("error",
-                  G_TYPE_FROM_CLASS (klass),
-                  G_SIGNAL_RUN_LAST,
-                  0,
-                  NULL, NULL, NULL,
-                  G_TYPE_NONE,
-                  2, APERTURE_TYPE_VIEWFINDER_ERROR, G_TYPE_BOOLEAN);
 }
 
 
@@ -576,15 +647,16 @@ aperture_viewfinder_init (ApertureViewfinder *self)
   gtk_widget_show (self->sink_widget);
   gtk_container_add (GTK_CONTAINER (self), self->sink_widget);
 
-  self->pipeline = gst_pipeline_new (NULL);
-  gst_bus_add_watch (gst_pipeline_get_bus (GST_PIPELINE (self->pipeline)), on_bus_message_async, self);
+  self->camerabin = create_element (self, "camerabin");
+  gst_bus_add_watch (gst_pipeline_get_bus (GST_PIPELINE (self->camerabin)), on_bus_message_async, self);
 
   self->tee = aperture_pipeline_tee_new ();
 
-  self->camerabin = create_element (self, "camerabin");
-  g_object_set (self->camerabin, "viewfinder-sink", self->tee, NULL);
   aperture_pipeline_tee_add_branch (self->tee, self->gtksink);
-  gst_bin_add (GST_BIN (self->pipeline), self->camerabin);
+  g_object_set (self->camerabin, "viewfinder-sink", self->tee, NULL);
+
+  create_photo_capture_bin (self, &self->capture);
+  aperture_pipeline_tee_add_branch (self->tee, self->capture.bin);
 
   self->camera = -1;
   self->devices = aperture_device_manager_get_instance ();
@@ -603,7 +675,7 @@ aperture_viewfinder_init (ApertureViewfinder *self)
 
   if (aperture_device_manager_get_num_cameras (self->devices) > 0) {
     set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-    aperture_viewfinder_set_camera (self, 0);
+    aperture_viewfinder_set_camera (self, 0, NULL);
   } else {
     set_state (self, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
   }
@@ -632,26 +704,29 @@ aperture_viewfinder_new (void)
  * aperture_viewfinder_set_camera:
  * @self: an #ApertureViewfinder
  * @camera: a camera index
+ * @error: a location for a #GError, or %NULL
  *
  * Sets the camera that the #ApertureViewfinder will use. See
  * #ApertureViewfinder:camera.
  *
- * This cannot be called if the viewfinder is not in the
- * %APERTURE_VIEWFINDER_STATE_READY state. The camera source cannot be changed
- * while a picture is being taken or a video is being recorded, or if an error
- * has occurred.
- *
  * Since: 0.1
  */
 void
-aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera)
+aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera, GError **error)
 {
   g_autoptr(GstElement) wrapper = NULL;
   g_autoptr(GstElement) camera_src = NULL;
+  GError *err = NULL;
 
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
   g_return_if_fail (camera >= -1 && camera < aperture_device_manager_get_num_cameras (self->devices));
-  g_return_if_fail (self->state == APERTURE_VIEWFINDER_STATE_READY);
+
+  get_current_operation (self, &err);
+  set_error_if_not_ready (self, &err);
+  if (err) {
+    g_propagate_error (error, err);
+    return;
+  }
 
   if (self->camera == camera) {
     return;
@@ -767,41 +842,77 @@ aperture_viewfinder_get_detect_barcodes (ApertureViewfinder *self)
 
 
 /**
- * aperture_viewfinder_take_picture_to_file:
+ * aperture_viewfinder_take_picture_async:
  * @self: an #ApertureViewfinder
- * @file: file path to save the picture to
+ * @cancellable: (nullable): a #GCancellable
+ * @callback: a #GAsyncReadyCallback to execute upon completion
+ * @user_data: closure data for @callback
  *
- * Takes a picture and saves it to a file.
+ * Takes a picture.
  *
  * This may take a while. The resolution might be changed temporarily,
  * autofocusing might take place, etc. Basically everything you'd expect
- * to happen when you click the photo button on the camera app.
+ * to happen when you click the photo button in a camera app.
  *
- * When the picture has been taken and saved,
- * #ApertureViewfinder::picture_taken will be emitted.
- *
- * This cannot be called if the viewfinder is not in the
- * %APERTURE_VIEWFINDER_STATE_READY state. A picture cannot be taken if the
- * viewfinder is already taking a picture or recording a video, or if an error
- * has occurred.
+ * When the picture has been taken, @callback will be called. Use
+ * aperture_viewfinder_take_picture_finish() to get the picture as a
+ * #GdkPixbuf.
  *
  * Since: 0.1
  */
 void
-aperture_viewfinder_take_picture_to_file (ApertureViewfinder *self, const char *file)
+aperture_viewfinder_take_picture_async (ApertureViewfinder *self,
+                                        GCancellable *cancellable,
+                                        GAsyncReadyCallback callback,
+                                        gpointer user_data)
 {
+  GTask *task = NULL;
+  GError *err = NULL;
+
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
-  g_return_if_fail (file != NULL);
-  g_return_if_fail (self->state == APERTURE_VIEWFINDER_STATE_READY);
+  g_return_if_fail (!cancellable || G_IS_CANCELLABLE (cancellable));
 
-  set_state (self, APERTURE_VIEWFINDER_STATE_TAKING_PICTURE);
+  /* Set up task */
+  task = g_task_new (self, cancellable, callback, user_data);
+  g_task_set_source_tag (task, aperture_viewfinder_take_picture_async);
 
-  g_object_set (self->camerabin,
-                "mode", 1,
-                "location", file,
-                NULL);
+  set_error_if_not_ready (self, &err);
+  get_current_operation (self, &err);
+  if (err) {
+    g_task_return_error (task, err);
+    g_object_unref (task);
+    return;
+  }
 
-  g_signal_emit_by_name (self->camerabin, "start-capture");
+  self->task_take_picture = task;
+
+  /* Start the picture taking process */
+  g_object_set (self->capture.valve, "drop", FALSE, NULL);
+}
+
+
+/**
+ * aperture_viewfinder_take_picture_finish:
+ * @self: an #ApertureViewfinder
+ * @result: a #GAsyncResult provided to callback
+ * @error: a location for a #GError, or %NULL
+ *
+ * Finishes an operation started by
+ * aperture_viewfinder_take_picture_async().
+ *
+ * Returns: (transfer full): the image that was taken, or %NULL if there was an
+ * error
+ * Since: 0.1
+ */
+GdkPixbuf *
+aperture_viewfinder_take_picture_finish (ApertureViewfinder *self,
+                                         GAsyncResult *result,
+                                         GError **error)
+{
+  g_return_val_if_fail (APERTURE_IS_VIEWFINDER (self), NULL);
+  g_return_val_if_fail (G_IS_TASK (result), FALSE);
+
+  return g_task_propagate_pointer (G_TASK (result), error);
 }
 
 
@@ -809,24 +920,30 @@ aperture_viewfinder_take_picture_to_file (ApertureViewfinder *self, const char *
  * aperture_viewfinder_start_recording_to_file:
  * @self: an #ApertureViewfinder
  * @file: file path to save the video to
+ * @error: a location for a #GError, or %NULL
  *
  * Starts recording a video. The video will be saved to @file.
  *
- * This cannot be called if the viewfinder is not in the
- * %APERTURE_VIEWFINDER_STATE_READY state. Recording cannot start if the
- * viewfinder is already taking a picture or recording a video, or if an error
- * has occurred.
+ * Call aperture_viewfinder_stop_recording_async() to stop recording.
  *
  * Since: 0.1
  */
 void
-aperture_viewfinder_start_recording_to_file (ApertureViewfinder *self, const char *file)
+aperture_viewfinder_start_recording_to_file (ApertureViewfinder *self, const char *file, GError **error)
 {
+  GError *err = NULL;
+
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
   g_return_if_fail (file != NULL);
-  g_return_if_fail (self->state == APERTURE_VIEWFINDER_STATE_READY);
 
-  set_state (self, APERTURE_VIEWFINDER_STATE_RECORDING);
+  set_error_if_not_ready (self, &err);
+  get_current_operation (self, &err);
+  if (err) {
+    g_propagate_error (error, err);
+    return;
+  }
+
+  self->recording_video = TRUE;
 
   g_object_set (self->camerabin,
                 "mode", 2,
@@ -838,22 +955,73 @@ aperture_viewfinder_start_recording_to_file (ApertureViewfinder *self, const cha
 
 
 /**
- * aperture_viewfinder_stop_recording:
+ * aperture_viewfinder_stop_recording_async:
  * @self: an #ApertureViewfinder
+ * @cancellable: (nullable): a #GCancellable
+ * @callback: a #GAsyncReadyCallback to execute upon completion
+ * @user_data: closure data for @callback
  *
- * Stop recording video. The #ApertureViewfinder::video_taken signal will be
- * emitted when this is done.
- *
- * The viewfinder must be recording when this is called. If it is,
- * #ApertureViewfinder:state will be %APERTURE_VIEWFINDER_STATE_RECORDING.
+ * Stop recording video. @callback will be called when this is complete.
  *
  * Since: 0.1
  */
 void
-aperture_viewfinder_stop_recording (ApertureViewfinder *self)
+aperture_viewfinder_stop_recording_async (ApertureViewfinder *self,
+                                          GCancellable *cancellable,
+                                          GAsyncReadyCallback callback,
+                                          gpointer user_data)
 {
+  GTask *task = NULL;
+
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
-  g_return_if_fail (self->state == APERTURE_VIEWFINDER_STATE_RECORDING);
+  g_return_if_fail (!cancellable || G_IS_CANCELLABLE (cancellable));
+
+  /* Set up the task */
+  task = g_task_new (self, cancellable, callback, user_data);
+  g_task_set_source_tag (task, aperture_viewfinder_stop_recording_async);
+
+  /* Make sure there's an ongoing recording and that we're not already
+   * stopping it*/
+  if (!self->recording_video) {
+    g_task_return_new_error (task,
+                             APERTURE_MEDIA_CAPTURE_ERROR,
+                             APERTURE_MEDIA_CAPTURE_ERROR_NO_RECORDING_TO_STOP,
+                             "There is no recording to stop");
+  }
+  if (self->task_take_video) {
+    g_task_return_new_error (task,
+                             APERTURE_MEDIA_CAPTURE_ERROR,
+                             APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS,
+                             "Operation in progress: Stop recording");
+  }
+
+  self->task_take_video = task;
 
   g_signal_emit_by_name (self->camerabin, "stop-capture");
 }
+
+
+/**
+ * aperture_viewfinder_stop_recording_finish:
+ * @self: an #ApertureViewfinder
+ * @result: a #GAsyncResult provided to callback
+ * @error: a location for a #GError, or %NULL
+ *
+ * Finishes an operation started by aperture_viewfinder_stop_recording_async().
+ *
+ * Returns: %TRUE if the process succeeded, otherwise %FALSE
+ * Since: 0.1
+ */
+gboolean
+aperture_viewfinder_stop_recording_finish (ApertureViewfinder *self,
+                                           GAsyncResult *result,
+                                           GError **error)
+{
+  g_return_val_if_fail (APERTURE_IS_VIEWFINDER (self), FALSE);
+  g_return_val_if_fail (G_IS_TASK (result), FALSE);
+
+  return g_task_propagate_boolean (G_TASK (result), error);
+}
+
+G_DEFINE_QUARK (APERTURE_MEDIA_CAPTURE_ERROR, aperture_media_capture_error);
+

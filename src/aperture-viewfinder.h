@@ -35,18 +35,17 @@ G_BEGIN_DECLS
 typedef enum {
   APERTURE_VIEWFINDER_STATE_LOADING,
   APERTURE_VIEWFINDER_STATE_READY,
-  APERTURE_VIEWFINDER_STATE_RECORDING,
-  APERTURE_VIEWFINDER_STATE_TAKING_PICTURE,
   APERTURE_VIEWFINDER_STATE_NO_CAMERAS,
   APERTURE_VIEWFINDER_STATE_ERROR,
 } ApertureViewfinderState;
 
 typedef enum {
-  APERTURE_VIEWFINDER_ERROR_UNSPECIFIED,
-  APERTURE_VIEWFINDER_ERROR_MISSING_PLUGIN,
-  APERTURE_VIEWFINDER_ERROR_PIPELINE_ERROR,
-  APERTURE_VIEWFINDER_ERROR_COULD_NOT_TAKE_PICTURE,
-} ApertureViewfinderError;
+  APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS,
+  APERTURE_MEDIA_CAPTURE_ERROR_NO_RECORDING_TO_STOP,
+  APERTURE_MEDIA_CAPTURE_ERROR_CAMERA_DISCONNECTED,
+  APERTURE_MEDIA_CAPTURE_ERROR_INTERRUPTED,
+  APERTURE_MEDIA_CAPTURE_ERROR_NOT_READY,
+} ApertureMediaCaptureError;
 
 
 #define APERTURE_TYPE_VIEWFINDER (aperture_viewfinder_get_type())
@@ -55,17 +54,35 @@ G_DECLARE_FINAL_TYPE (ApertureViewfinder, aperture_viewfinder, APERTURE, VIEWFIN
 
 ApertureViewfinder      *aperture_viewfinder_new                     (void);
 void                     aperture_viewfinder_set_camera              (ApertureViewfinder *self,
-                                                                      int                 camera);
+                                                                      int                 camera,
+                                                                      GError            **err);
 int                      aperture_viewfinder_get_camera              (ApertureViewfinder *self);
 ApertureViewfinderState  aperture_viewfinder_get_state               (ApertureViewfinder *self);
 void                     aperture_viewfinder_set_detect_barcodes     (ApertureViewfinder *self,
                                                                       gboolean            detect_barcodes);
 gboolean                 aperture_viewfinder_get_detect_barcodes     (ApertureViewfinder *self);
-void                     aperture_viewfinder_take_picture_to_file    (ApertureViewfinder *self,
-                                                                      const char         *file);
-void                     aperture_viewfinder_start_recording_to_file (ApertureViewfinder *self,
-                                                                      const char         *file);
-void                     aperture_viewfinder_stop_recording          (ApertureViewfinder *self);
+
+void                     aperture_viewfinder_take_picture_async          (ApertureViewfinder *self,
+                                                                          GCancellable *cancellable,
+                                                                          GAsyncReadyCallback callback,
+                                                                          gpointer user_data);
+GdkPixbuf               *aperture_viewfinder_take_picture_finish         (ApertureViewfinder *self,
+                                                                          GAsyncResult *result,
+                                                                          GError **error);
+
+void                     aperture_viewfinder_start_recording_to_file     (ApertureViewfinder *self,
+                                                                          const char *file,
+                                                                          GError **err);
+void                     aperture_viewfinder_stop_recording_async        (ApertureViewfinder *self,
+                                                                          GCancellable *cancellable,
+                                                                          GAsyncReadyCallback callback,
+                                                                          gpointer user_data);
+gboolean                 aperture_viewfinder_stop_recording_finish       (ApertureViewfinder *self,
+                                                                          GAsyncResult *result,
+                                                                          GError **error);
+
+#define APERTURE_MEDIA_CAPTURE_ERROR (aperture_media_capture_error_quark())
+GQuark aperture_media_capture_error_quark (void);
 
 
 G_END_DECLS
