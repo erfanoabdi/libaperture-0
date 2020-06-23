@@ -59,8 +59,21 @@ testutils_callback_init (TestUtilsCallback *self)
 
 
 void
+testutils_callback_assert_already_called (TestUtilsCallback *self)
+{
+  g_assert_cmpint (self->calls, >, 0);
+  self->calls --;
+}
+
+
+void
 testutils_callback_assert_called (TestUtilsCallback *self, int timeout)
 {
+  if (timeout == 0) {
+    testutils_callback_assert_already_called (self);
+    return;
+  }
+
   if (self->calls > 0) {
     self->calls --;
     return;
@@ -72,8 +85,7 @@ testutils_callback_assert_called (TestUtilsCallback *self, int timeout)
 
   g_source_remove (self->timeout_id);
 
-  g_assert_true (self->calls > 0);
-  self->calls --;
+  testutils_callback_assert_already_called (self);
   self->loop_running = FALSE;
 }
 
@@ -111,3 +123,34 @@ testutils_wait_for_device_change (ApertureDeviceManager *manager)
   g_signal_handler_disconnect (manager, added);
   g_signal_handler_disconnect (manager, removed);
 }
+
+
+/* Get the RGB component of a pixel in a pixbuf */
+static guint32
+pixbuf_pixel (GdkPixbuf *pixbuf, int x, int y)
+{
+  int channels = gdk_pixbuf_get_n_channels (pixbuf);
+  int rowstride = gdk_pixbuf_get_rowstride (pixbuf);
+  int offset = (y*rowstride + x*channels) / channels;
+
+  /* & 0xFFFFFF because we're only interested in RGB, not alpha */
+  return ((guint32 *) gdk_pixbuf_read_pixels (pixbuf))[offset] & 0xFFFFFF;
+}
+
+
+/* Assert that the given pixbuf matches the quadrants.png image in the
+ * tests/data directory. */
+void
+testutils_assert_quadrants_pixbuf (GdkPixbuf *pixbuf)
+{
+  g_assert_true (GDK_IS_PIXBUF (pixbuf));
+
+  g_assert_cmpint (gdk_pixbuf_get_width (pixbuf), ==, 128);
+  g_assert_cmpint (gdk_pixbuf_get_height (pixbuf), ==, 128);
+
+  g_assert_cmphex (pixbuf_pixel (pixbuf, 32, 32), ==, 0x0000FF);
+  g_assert_cmphex (pixbuf_pixel (pixbuf, 96, 32), ==, 0x00FF00);
+  g_assert_cmphex (pixbuf_pixel (pixbuf, 32, 96), ==, 0xFF0000);
+  g_assert_cmphex (pixbuf_pixel (pixbuf, 96, 96), ==, 0x000000);
+}
+

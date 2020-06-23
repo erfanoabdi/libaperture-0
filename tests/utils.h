@@ -33,11 +33,15 @@ typedef struct {
 } TestUtilsCallback;
 
 
-void testutils_callback_init          (TestUtilsCallback     *self);
-void testutils_callback_assert_called (TestUtilsCallback     *self,
-                                       int                    timeout);
-void testutils_callback_call          (TestUtilsCallback     *self);
+void testutils_callback_init                  (TestUtilsCallback     *self);
+void testutils_callback_assert_called         (TestUtilsCallback     *self,
+                                               int                    timeout);
+void testutils_callback_assert_already_called (TestUtilsCallback *self);
+void testutils_callback_call                  (TestUtilsCallback     *self);
 
-void testutils_wait_for_device_change (ApertureDeviceManager *manager);
+void testutils_wait_for_device_change         (ApertureDeviceManager *manager);
+
+void testutils_assert_quadrants_pixbuf        (GdkPixbuf *pixbuf);
+
 
 G_END_DECLS

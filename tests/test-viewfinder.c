@@ -53,8 +53,171 @@ test_viewfinder_no_camera_state ()
 }
 
 
+static void
+on_picture_taken (ApertureViewfinder *source, GAsyncResult *res, TestUtilsCallback *callback)
+{
+  g_autoptr(GError) err = NULL;
+  g_autoptr(GdkPixbuf) pixbuf = NULL;
+
+  pixbuf = aperture_viewfinder_take_picture_finish (source, res, &err);
+
+  g_assert_no_error (err);
+  testutils_assert_quadrants_pixbuf (pixbuf);
+
+  testutils_callback_call (callback);
+}
+
+
+static void
+test_viewfinder_take_picture ()
+{
+  g_autoptr(ApertureDeviceManager) manager = aperture_device_manager_get_instance ();
+  g_autoptr(DummyDeviceProvider) provider = DUMMY_DEVICE_PROVIDER (gst_device_provider_factory_get_by_name ("dummy-device-provider"));
+  ApertureViewfinder *viewfinder;
+  GtkWidget *window;
+  TestUtilsCallback picture_callback;
+  DummyDevice *device;
+
+  testutils_callback_init (&picture_callback);
+
+  device = dummy_device_provider_add (provider);
+  dummy_device_set_image (device, "/aperture/quadrants.png");
+  testutils_wait_for_device_change (manager);
+
+  viewfinder = aperture_viewfinder_new ();
+
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (viewfinder));
+  gtk_widget_show_all (window);
+
+  aperture_viewfinder_take_picture_async (viewfinder, NULL, (GAsyncReadyCallback) on_picture_taken, &picture_callback);
+
+  testutils_callback_assert_called (&picture_callback, 1000);
+
+  gtk_widget_destroy (window);
+}
+
+
+static void
+simultaneous_operations_on_picture_taken_1 (ApertureViewfinder *source, GAsyncResult *res, TestUtilsCallback *callback)
+{
+  testutils_callback_call (callback);
+}
+
+
+static void
+simultaneous_operations_on_picture_taken_2 (ApertureViewfinder *source, GAsyncResult *res, TestUtilsCallback *callback)
+{
+  g_autoptr(GError) err = NULL;
+  g_autoptr(GdkPixbuf) pixbuf = NULL;
+
+  pixbuf = aperture_viewfinder_take_picture_finish (source, res, &err);
+
+  g_assert_null (pixbuf);
+  g_assert_error (err, APERTURE_MEDIA_CAPTURE_ERROR, APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS);
+
+  testutils_callback_call (callback);
+}
+
+
+static void
+test_viewfinder_simultaneous_operations ()
+{
+  g_autoptr(ApertureDeviceManager) manager = aperture_device_manager_get_instance ();
+  g_autoptr(DummyDeviceProvider) provider = DUMMY_DEVICE_PROVIDER (gst_device_provider_factory_get_by_name ("dummy-device-provider"));
+  ApertureViewfinder *viewfinder;
+  GtkWidget *window;
+  g_autoptr(GError) err1 = NULL;
+  g_autoptr(GError) err2 = NULL;
+  TestUtilsCallback picture_callback_1;
+  TestUtilsCallback picture_callback_2;
+
+  testutils_callback_init (&picture_callback_1);
+  testutils_callback_init (&picture_callback_2);
+
+  dummy_device_provider_add (provider);
+  dummy_device_provider_add (provider);
+  testutils_wait_for_device_change (manager);
+  testutils_wait_for_device_change (manager);
+
+  viewfinder = aperture_viewfinder_new ();
+
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (viewfinder));
+  gtk_widget_show_all (window);
+
+  /* this is the operation that will block the others */
+  aperture_viewfinder_take_picture_async (viewfinder, NULL, (GAsyncReadyCallback) simultaneous_operations_on_picture_taken_1, &picture_callback_1);
+
+  /* setting the camera should not work */
+  aperture_viewfinder_set_camera (viewfinder, 1, &err1);
+  g_assert_error (err1, APERTURE_MEDIA_CAPTURE_ERROR, APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS);
+
+  /* starting a video should not work */
+  aperture_viewfinder_start_recording_to_file (viewfinder, "not_a_real_filename", &err2);
+  g_assert_error (err2, APERTURE_MEDIA_CAPTURE_ERROR, APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS);
+
+  /* taking another picture should not work */
+  aperture_viewfinder_take_picture_async (viewfinder, NULL, (GAsyncReadyCallback) simultaneous_operations_on_picture_taken_2, &picture_callback_2);
+
+  testutils_callback_assert_called (&picture_callback_1, 1000);
+  testutils_callback_assert_called (&picture_callback_2, 1000);
+
+  gtk_widget_destroy (window);
+}
+
+
+static void
+disconnect_on_picture_taken (ApertureViewfinder *source, GAsyncResult *res, TestUtilsCallback *callback)
+{
+  g_autoptr(GError) err = NULL;
+  g_autoptr(GdkPixbuf) pixbuf = NULL;
+
+  pixbuf = aperture_viewfinder_take_picture_finish (source, res, &err);
+
+  g_assert_null (pixbuf);
+  g_assert_error (err, APERTURE_MEDIA_CAPTURE_ERROR, APERTURE_MEDIA_CAPTURE_ERROR_CAMERA_DISCONNECTED);
+
+  testutils_callback_call (callback);
+}
+
+
+static void
+test_viewfinder_disconnect_camera ()
+{
+  g_autoptr(ApertureDeviceManager) manager = aperture_device_manager_get_instance ();
+  g_autoptr(DummyDeviceProvider) provider = DUMMY_DEVICE_PROVIDER (gst_device_provider_factory_get_by_name ("dummy-device-provider"));
+  ApertureViewfinder *viewfinder;
+  GtkWidget *window;
+  TestUtilsCallback picture_callback;
+
+  g_test_summary ("Test error handling when the active camera is disconnected during an operation");
+
+  dummy_device_provider_add (provider);
+  testutils_wait_for_device_change (manager);
+  g_assert_cmpint (aperture_device_manager_get_num_cameras (manager), ==, 1);
+
+  viewfinder = aperture_viewfinder_new ();
+
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (viewfinder));
+  gtk_widget_show_all (window);
+
+  aperture_viewfinder_take_picture_async (viewfinder, NULL, (GAsyncReadyCallback) disconnect_on_picture_taken, &picture_callback);
+
+  dummy_device_provider_remove (provider);
+  testutils_wait_for_device_change (manager);
+  testutils_callback_assert_called (&picture_callback, 1000);
+
+  gtk_widget_destroy (window);
+}
+
+
 void
 add_viewfinder_tests ()
 {
   g_test_add_func ("/viewfinder/no_camera", test_viewfinder_no_camera_state);
+  g_test_add_func ("/viewfinder/take_picture", test_viewfinder_take_picture);
+  g_test_add_func ("/viewfinder/simultaneous_operations", test_viewfinder_simultaneous_operations);
+  g_test_add_func ("/viewfinder/disconnect_camera", test_viewfinder_disconnect_camera);
 }

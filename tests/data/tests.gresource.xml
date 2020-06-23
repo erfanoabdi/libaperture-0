@@ -2,6 +2,7 @@
 <gresources>
   <gresource prefix="/aperture/">
     <file>helloworld.png</file>
+    <file>quadrants.png</file>
   </gresource>
 </gresources>
 
