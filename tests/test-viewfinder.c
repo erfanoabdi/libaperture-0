@@ -191,6 +191,8 @@ test_viewfinder_disconnect_camera ()
   GtkWidget *window;
   TestUtilsCallback picture_callback;
 
+  testutils_callback_init (&picture_callback);
+
   g_test_summary ("Test error handling when the active camera is disconnected during an operation");
 
   dummy_device_provider_add (provider);
