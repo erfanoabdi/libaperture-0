@@ -1,0 +1,6 @@
+usr/include/*
+usr/lib/*/libaperture-?.so
+usr/lib/*/pkgconfig/*
+usr/share/gir-1.0/*
+usr/share/gtk-doc/
+usr/share/vala/vapi/

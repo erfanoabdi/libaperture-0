@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --builddirectory=_build
+
+override_dh_auto_test:
+ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
+	LC_ALL=C.UTF-8 xvfb-run -a -s -noreset dh_auto_test
+endif
+
+override_dh_makeshlibs:
+	dh_makeshlibs --package=libaperture-0-0 -- -c2
