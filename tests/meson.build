@@ -19,9 +19,15 @@ test_sources = files(
 subdir('data')
 test_sources += test_gresources
 
+test_c_args = []
+if get_option('barcode_tests_skippable') == 'true'
+  test_c_args += '-DBARCODE_TESTS_SKIPPABLE'
+endif
+
 test_executable = executable('aperture-tests',
   test_sources,
   dependencies: libaperture_dep,
+  c_args: test_c_args,
   install: true,
 )
 

@@ -42,6 +42,13 @@ test_barcodes_enabled ()
 {
   g_test_summary ("Test that barcode detection is enabled in the test environment");
 
+#ifdef BARCODE_TESTS_SKIPPABLE
+  if (!aperture_is_barcode_detection_enabled ()) {
+    g_test_skip ("Skipping test that requires barcode detection, because it is not available");
+    return;
+  }
+#endif
+
   g_assert_true (aperture_is_barcode_detection_enabled ());
 }
 
@@ -63,6 +70,13 @@ test_barcodes_detection ()
   GtkWidget *window;
   TestUtilsCallback detected_callback;
   DummyDevice *device;
+
+#ifdef BARCODE_TESTS_SKIPPABLE
+  if (!aperture_is_barcode_detection_enabled ()) {
+    g_test_skip ("Skipping test that requires barcode detection, because it is not available");
+    return;
+  }
+#endif
 
   testutils_callback_init (&detected_callback);
 

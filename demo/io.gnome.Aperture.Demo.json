@@ -72,6 +72,7 @@
             "name" : "libaperture",
             "builddir" : true,
             "buildsystem" : "meson",
+            "config-opts": [ "-Dbarcode_tests_skippable=false" ],
             "sources" : [
                 {
                     "type": "git",

@@ -3,3 +3,5 @@ option('demo', type: 'boolean', value: true, description: 'Build the demo applic
 
 option('gir', type: 'boolean', value: true, description: 'Build the GObject Introspection bindings')
 option('vapi', type: 'boolean', value: true, description: 'Build the Vala API bindings')
+
+option('barcode_tests_skippable', type: 'boolean', value: true, description: 'Allow tests which require ZBar to be skipped if it is not available.')
