@@ -20,7 +20,7 @@ subdir('data')
 test_sources += test_gresources
 
 test_c_args = []
-if get_option('barcode_tests_skippable') == 'true'
+if get_option('barcode_tests_skippable')
   test_c_args += '-DBARCODE_TESTS_SKIPPABLE'
 endif
 
