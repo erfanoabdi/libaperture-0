@@ -55,7 +55,7 @@ G_DECLARE_FINAL_TYPE (ApertureViewfinder, aperture_viewfinder, APERTURE, VIEWFIN
 ApertureViewfinder      *aperture_viewfinder_new                     (void);
 void                     aperture_viewfinder_set_camera              (ApertureViewfinder *self,
                                                                       int                 camera,
-                                                                      GError            **err);
+                                                                      GError            **error);
 int                      aperture_viewfinder_get_camera              (ApertureViewfinder *self);
 ApertureViewfinderState  aperture_viewfinder_get_state               (ApertureViewfinder *self);
 void                     aperture_viewfinder_set_detect_barcodes     (ApertureViewfinder *self,
@@ -72,7 +72,7 @@ GdkPixbuf               *aperture_viewfinder_take_picture_finish         (Apertu
 
 void                     aperture_viewfinder_start_recording_to_file     (ApertureViewfinder *self,
                                                                           const char *file,
-                                                                          GError **err);
+                                                                          GError **error);
 void                     aperture_viewfinder_stop_recording_async        (ApertureViewfinder *self,
                                                                           GCancellable *cancellable,
                                                                           GAsyncReadyCallback callback,
