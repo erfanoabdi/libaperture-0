@@ -4,6 +4,7 @@ aperture_build_dir = meson.current_build_dir()
 # List headers and sources
 libaperture_headers = [
   'aperture.h',
+  'aperture-camera.h',
   'aperture-device-manager.h',
   'aperture-utils.h',
   'aperture-viewfinder.h'
@@ -11,8 +12,11 @@ libaperture_headers = [
 libaperture_generated_headers = []
 
 libaperture_sources = files(
+  'devices/aperture-device.c',
+
   'pipeline/aperture-pipeline-tee.c',
 
+  'aperture-camera.c',
   'aperture-device-manager.c',
   'aperture-utils.c',
   'aperture-viewfinder.c',

@@ -1,4 +1,4 @@
-/* aperture-device-manager-private.h
+/* aperture-device.h
  *
  * Copyright 2020 James Westman <james@flyingpimonster.net>
  *
@@ -19,14 +19,36 @@
  */
 
 
+#pragma once
+
 #include <gst/gst.h>
-#include "aperture-device-manager.h"
+
+#include "aperture-camera.h"
 
 
 G_BEGIN_DECLS
 
 
-GstElement *aperture_device_manager_get_video_source (ApertureDeviceManager *self, int idx);
+#define APERTURE_TYPE_DEVICE (aperture_device_get_type())
+G_DECLARE_DERIVABLE_TYPE (ApertureDevice, aperture_device, APERTURE, DEVICE, GObject)
+
+
+struct _ApertureDeviceClass
+{
+  GObjectClass parent_class;
+
+  const char *device_class;
+
+  GList          * (* list_cameras) (ApertureDevice *device);
+  ApertureCamera * (* get_camera)   (ApertureDevice *device,
+                                     GstDevice *gst_device);
+};
+
+
+ApertureDevice *aperture_device_get_instance (void);
+
+GList          *aperture_device_list_cameras (ApertureDevice *device);
+ApertureCamera *aperture_device_get_camera   (ApertureDevice *device, GstDevice *gst_device);
 
 
 G_END_DECLS

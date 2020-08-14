@@ -22,7 +22,7 @@
 #include <glib.h>
 #include <aperture.h>
 
-#include "private/aperture-device-manager-private.h"
+#include "private/aperture-camera-private.h"
 #include "dummy-device-provider.h"
 #include "utils.h"
 
@@ -69,15 +69,18 @@ test_device_manager_refcounting ()
 static gboolean
 manager_contains_test_device (ApertureDeviceManager *manager)
 {
-  g_autoptr(GstElement) element = NULL;
+  g_autoptr(ApertureCamera) camera = NULL;
   int num_dummy_cameras = 0;
   int num_cameras = aperture_device_manager_get_num_cameras (manager);
   int i;
 
   for (i = 0; i < num_cameras; i ++) {
-    g_set_object (&element, aperture_device_manager_get_video_source (manager, i));
-    if (g_str_has_prefix (gst_object_get_name (GST_OBJECT (element)), "videotestsrc")) {
-      num_dummy_cameras ++;
+    g_set_object (&camera, aperture_device_manager_get_camera (manager, i));
+    if (APERTURE_IS_CAMERA (camera)) {
+      g_autoptr(GstElement) element = aperture_camera_get_source_element (camera, NULL);
+      if (g_str_has_prefix (gst_object_get_name (GST_OBJECT (element)), "videotestsrc")) {
+        num_dummy_cameras ++;
+      }
     }
   }
 

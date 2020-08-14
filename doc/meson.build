@@ -29,7 +29,7 @@ gnome.gtkdoc('aperture',
   scan_args: [
     '--rebuild-types',
     '--rebuild-sections',
-    '--ignore-headers=pipeline private'
+    '--ignore-headers=devices pipeline private',
   ],
 
   install_dir: aperture_library_name,

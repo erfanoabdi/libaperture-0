@@ -32,6 +32,8 @@
 #include <gst/gst.h>
 #include <gio/gio.h>
 #include "aperture-device-manager.h"
+#include "devices/aperture-device.h"
+#include "private/aperture-camera-private.h"
 
 
 struct _ApertureDeviceManager
@@ -59,21 +61,39 @@ enum {
 static guint signals[N_SIGNALS];
 
 
-/* FIXME: When GLib 2.64 becomes common enough, replace this with
- * g_list_store_find() */
+/* Finds a matching ApertureCamera in our list, given a GstDevice */
 static gboolean
-find_in_list_model (GListModel *model, gpointer item, uint *position)
+find_device_in_list_model (GListModel *model, GstDevice *gst_device, uint *position)
 {
-  g_autoptr(GstDevice) device = NULL;
+  g_autoptr(ApertureCamera) camera = NULL;
   int i;
   int n = g_list_model_get_n_items (model);
 
   for (i = 0; i < n; i ++) {
-    g_set_object (&device, g_list_model_get_item (model, i));
-    if (device == item) {
+    g_set_object (&camera, g_list_model_get_item (model, i));
+    if (aperture_camera_get_gst_device (camera) == gst_device) {
       *position = i;
       return TRUE;
     }
+  }
+
+  return FALSE;
+}
+
+
+/* Gets an #ApertureCamera instance from the #ApertureDevice implementation,
+ * and adds it to the device manager's list. */
+static gboolean
+add_camera (ApertureDeviceManager *self, GstDevice *gst_device)
+{
+  ApertureDevice *device = aperture_device_get_instance ();
+  ApertureCamera *camera = aperture_device_get_camera (device, gst_device);
+
+  /* aperture_device_get_camera might return NULL, which means we should
+   * ignore this device */
+  if (camera != NULL) {
+    g_list_store_append (self->device_list, camera);
+    return TRUE;
   }
 
   return FALSE;
@@ -92,18 +112,19 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
     gst_message_parse_device_added (message, &device);
     g_debug ("New camera detected: %s", gst_device_get_display_name (device));
 
-    g_list_store_append (self->device_list, device);
-    device_index = g_list_model_get_n_items (G_LIST_MODEL (self->device_list)) - 1;
+    if (add_camera (self, device)) {
+      device_index = g_list_model_get_n_items (G_LIST_MODEL (self->device_list)) - 1;
 
-    g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
-    g_signal_emit (self, signals[SIGNAL_CAMERA_ADDED], 0, device_index);
+      g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
+      g_signal_emit (self, signals[SIGNAL_CAMERA_ADDED], 0, device_index);
+    }
 
     break;
   case GST_MESSAGE_DEVICE_REMOVED:
     gst_message_parse_device_removed (message, &device);
     g_debug ("Camera removed: %s", gst_device_get_display_name (device));
 
-    if (find_in_list_model (G_LIST_MODEL (self->device_list), device, &device_index)) {
+    if (find_device_in_list_model (G_LIST_MODEL (self->device_list), device, &device_index)) {
       g_list_store_remove (self->device_list, device_index);
     }
 
@@ -222,6 +243,8 @@ aperture_device_manager_class_init (ApertureDeviceManagerClass *klass)
 static void
 aperture_device_manager_init (ApertureDeviceManager *self)
 {
+  ApertureDevice *device = aperture_device_get_instance ();
+  g_autolist(ApertureCamera) cameras = aperture_device_list_cameras (device);
   g_autoptr(GstBus) bus = NULL;
   g_autolist(GstDevice) devices = NULL;
   GList *i;
@@ -230,11 +253,17 @@ aperture_device_manager_init (ApertureDeviceManager *self)
   gst_device_monitor_add_filter (self->monitor, "Source/Video", NULL);
   gst_device_monitor_start (self->monitor);
 
-  self->device_list = g_list_store_new (GST_TYPE_DEVICE);
+  self->device_list = g_list_store_new (APERTURE_TYPE_CAMERA);
 
+  /* Add built-in cameras from the device */
+  for (i = cameras; i != NULL; i = i->next) {
+    g_list_store_append (self->device_list, i->data);
+  }
+
+  /* Add devices from GstDeviceMonitor */
   devices = gst_device_monitor_get_devices (self->monitor);
   for (i = devices; i != NULL; i = i->next) {
-    g_list_store_append (self->device_list, i->data);
+    add_camera (self, i->data);
   }
 
   bus = gst_device_monitor_get_bus (self->monitor);
@@ -322,22 +351,20 @@ aperture_device_manager_next_camera (ApertureDeviceManager *self, int idx)
 
 
 /**
- * PRIVATE:aperture_device_manager_get_video_source:
+ * aperture_device_manager_get_camera:
  * @self: an #ApertureDeviceManager
  * @idx: a camera index
  *
- * Gets a GStreamer source element for the given camera.
+ * Gets an #ApertureCamera object for the given camera index.
  *
- * Returns: (transfer full): a new #GstElement
+ * Returns: (transfer full): the #ApertureCamera at @idx
  */
-GstElement *
-aperture_device_manager_get_video_source (ApertureDeviceManager *self, int idx)
+ApertureCamera *
+aperture_device_manager_get_camera (ApertureDeviceManager *self, int idx)
 {
-  g_autoptr(GstDevice) device = NULL;
+  g_return_val_if_fail (APERTURE_IS_DEVICE_MANAGER (self), NULL);
+  g_return_val_if_fail (idx >= 0, NULL);
+  g_return_val_if_fail (idx < g_list_model_get_n_items (G_LIST_MODEL (self->device_list)), NULL);
 
-  g_return_val_if_fail (APERTURE_IS_DEVICE_MANAGER (self), 0);
-  g_return_val_if_fail (idx >= 0 && idx <= aperture_device_manager_get_num_cameras (self), NULL);
-
-  device = g_list_model_get_item (G_LIST_MODEL (self->device_list), (guint) idx);
-  return gst_device_create_element (device, NULL);
+  return g_list_model_get_item (G_LIST_MODEL (self->device_list), idx);
 }

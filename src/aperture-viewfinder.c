@@ -72,8 +72,9 @@
 
 
 
+#include "private/aperture-camera-private.h"
 #include "private/aperture-private.h"
-#include "private/aperture-device-manager-private.h"
+#include "aperture-device-manager.h"
 #include "aperture-utils.h"
 #include "aperture-viewfinder.h"
 #include "pipeline/aperture-pipeline-tee.h"
@@ -91,6 +92,7 @@ struct _ApertureViewfinder
   ApertureDeviceManager *devices;
 
   int camera;
+  GstElement *camera_src;
   ApertureViewfinderState state;
 
   GstElement *branch_zbar;
@@ -711,14 +713,15 @@ aperture_viewfinder_new (void)
  * Since: 0.1
  */
 void
-aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera, GError **error)
+aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera_idx, GError **error)
 {
   g_autoptr(GstElement) wrapper = NULL;
+  g_autoptr(ApertureCamera) camera = NULL;
   g_autoptr(GstElement) camera_src = NULL;
   GError *err = NULL;
 
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
-  g_return_if_fail (camera >= -1 && camera < aperture_device_manager_get_num_cameras (self->devices));
+  g_return_if_fail (camera_idx >= -1 && camera_idx < aperture_device_manager_get_num_cameras (self->devices));
 
   get_current_operation (self, &err);
   set_error_if_not_ready (self, &err);
@@ -727,22 +730,30 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera, GError **e
     return;
   }
 
-  if (self->camera == camera) {
+  if (self->camera == camera_idx) {
     return;
   }
 
-  self->camera = camera;
-
-  if (camera != -1) {
-    wrapper = create_element (self, "wrappercamerabinsrc");
-    camera_src = aperture_device_manager_get_video_source (self->devices, self->camera);
-    g_object_set (wrapper, "video-source", camera_src, NULL);
-    g_object_set (self->camerabin, "camera-source", wrapper, NULL);
-  }
+  self->camera = camera_idx;
 
   /* Must change camerabin to NULL and back to PLAYING for the change to take
    * effect */
   gst_element_set_state (self->camerabin, GST_STATE_NULL);
+
+  if (camera_idx != -1) {
+    wrapper = create_element (self, "wrappercamerabinsrc");
+    camera = aperture_device_manager_get_camera (self->devices, self->camera);
+    camera_src = aperture_camera_get_source_element (camera, self->camera_src);
+
+    /* camera_src might be NULL, which means the element was reconfigured and
+     * we should keep using it */
+    if (camera_src) {
+      g_object_set (wrapper, "video-source", camera_src, NULL);
+      g_object_set (self->camerabin, "camera-source", wrapper, NULL);
+      self->camera_src = camera_src;
+    }
+  }
+
   if (gtk_widget_get_realized (GTK_WIDGET (self->sink_widget))) {
     gst_element_set_state (self->camerabin, GST_STATE_PLAYING);
   }

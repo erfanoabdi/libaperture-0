@@ -54,7 +54,7 @@ G_DECLARE_FINAL_TYPE (ApertureViewfinder, aperture_viewfinder, APERTURE, VIEWFIN
 
 ApertureViewfinder      *aperture_viewfinder_new                     (void);
 void                     aperture_viewfinder_set_camera              (ApertureViewfinder *self,
-                                                                      int                 camera,
+                                                                      ApertureCamera     *camera,
                                                                       GError            **error);
 int                      aperture_viewfinder_get_camera              (ApertureViewfinder *self);
 ApertureViewfinderState  aperture_viewfinder_get_state               (ApertureViewfinder *self);

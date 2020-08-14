@@ -22,7 +22,6 @@
 #include <glib.h>
 #include <aperture.h>
 
-#include "private/aperture-device-manager-private.h"
 #include "dummy-device-provider.h"
 #include "utils.h"
 
