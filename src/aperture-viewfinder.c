@@ -644,7 +644,6 @@ aperture_viewfinder_init (ApertureViewfinder *self)
   gtk_widget_set_hexpand (self->sink_widget, TRUE);
   gtk_widget_set_vexpand (self->sink_widget, TRUE);
   gtk_widget_show (self->sink_widget);
-  gtk_widget_show (self->sink_widget);
   gtk_container_add (GTK_CONTAINER (self), self->sink_widget);
 
   self->camerabin = create_element (self, "camerabin");
