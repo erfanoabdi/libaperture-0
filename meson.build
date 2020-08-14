@@ -8,6 +8,11 @@ project('aperture', ['c'],
 aperture_api_version = '0'
 aperture_library_name = 'aperture-@0@'.format(aperture_api_version)
 
+version_arr = meson.project_version().split('.')
+aperture_major = version_arr[0].to_int()
+aperture_minor = version_arr[1].to_int()
+aperture_micro = version_arr[2].to_int()
+
 
 add_project_arguments([
   '-DAPERTURE_COMPILATION',

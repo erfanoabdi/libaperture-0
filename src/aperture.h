@@ -28,6 +28,7 @@
 #define _LIBAPERTURE_INSIDE
 
 
+#include "aperture-build-info.h"
 #include "aperture-device-manager.h"
 #include "aperture-enums.h"
 #include "aperture-utils.h"

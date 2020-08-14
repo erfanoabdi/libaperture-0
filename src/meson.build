@@ -19,6 +19,16 @@ libaperture_sources = files(
 )
 
 
+configure_file(
+  output: 'aperture-build-info.h',
+  configuration: {
+    'APERTURE_MAJOR_VERSION': aperture_major,
+    'APERTURE_MINOR_VERSION': aperture_minor,
+    'APERTURE_MICRO_VERSION': aperture_micro,
+  }
+)
+libaperture_generated_headers += ['aperture-build-info.h']
+
 
 libaperture_c_flags = [
   '-DG_LOG_DOMAIN="Aperture"',
