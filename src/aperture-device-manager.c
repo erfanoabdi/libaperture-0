@@ -81,9 +81,28 @@ find_device_in_list_model (GListModel *model, GstDevice *gst_device, uint *posit
 }
 
 
+static uint
+find_camera_in_list_model (GListModel *model, ApertureCamera *camera) {
+  /* FIXME: When GLib 2.64 becomes common enough, use g_list_store_find() */
+
+  g_autoptr(ApertureCamera) current = NULL;
+  int i;
+  int n = g_list_model_get_n_items (model);
+
+  for (i = 0; i < n; i ++) {
+    g_set_object (&current, g_list_model_get_item (model, i));
+    if (camera == current) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+
 /* Gets an #ApertureCamera instance from the #ApertureDevice implementation,
- * and adds it to the device manager's list. */
-static gboolean
+ * adds it to the device manager's list, and returns it. */
+static ApertureCamera *
 add_camera (ApertureDeviceManager *self, GstDevice *gst_device)
 {
   ApertureDevice *device = aperture_device_get_instance ();
@@ -93,10 +112,10 @@ add_camera (ApertureDeviceManager *self, GstDevice *gst_device)
    * ignore this device */
   if (camera != NULL) {
     g_list_store_append (self->device_list, camera);
-    return TRUE;
+    return camera;
   }
 
-  return FALSE;
+  return NULL;
 }
 
 
@@ -105,6 +124,7 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
 {
   ApertureDeviceManager *self = APERTURE_DEVICE_MANAGER (user_data);
   g_autoptr(GstDevice) device = NULL;
+  g_autoptr(ApertureCamera) camera = NULL;
   guint device_index = -1;
 
   switch (message->type) {
@@ -112,11 +132,12 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
     gst_message_parse_device_added (message, &device);
     g_debug ("New camera detected: %s", gst_device_get_display_name (device));
 
-    if (add_camera (self, device)) {
+    camera = add_camera (self, device);
+    if (camera) {
       device_index = g_list_model_get_n_items (G_LIST_MODEL (self->device_list)) - 1;
 
       g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
-      g_signal_emit (self, signals[SIGNAL_CAMERA_ADDED], 0, device_index);
+      g_signal_emit (self, signals[SIGNAL_CAMERA_ADDED], 0, camera);
     }
 
     break;
@@ -125,11 +146,12 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
     g_debug ("Camera removed: %s", gst_device_get_display_name (device));
 
     if (find_device_in_list_model (G_LIST_MODEL (self->device_list), device, &device_index)) {
+      camera = g_list_model_get_item (G_LIST_MODEL (self->device_list), device_index);
       g_list_store_remove (self->device_list, device_index);
-    }
 
-    g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
-    g_signal_emit (self, signals[SIGNAL_CAMERA_REMOVED], 0, device_index);
+      g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
+      g_signal_emit (self, signals[SIGNAL_CAMERA_REMOVED], 0, camera);
+    }
 
     break;
   default:
@@ -213,7 +235,7 @@ aperture_device_manager_class_init (ApertureDeviceManagerClass *klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE,
-                  1, G_TYPE_INT);
+                  1, APERTURE_TYPE_CAMERA);
 
   /**
    * ApertureDeviceManager::camera-removed:
@@ -221,11 +243,6 @@ aperture_device_manager_class_init (ApertureDeviceManagerClass *klass)
    * @camera_index: the index the camera had
    *
    * Emitted when a camera is removed (typically because it has been unplugged).
-   *
-   * The camera's index is provided, but remember that it is the camera's *old*
-   * index. That index is now either invalid or points to a different camera.
-   * You can still use it to check whether the camera you were using is the
-   * one that was removed.
    *
    * Since: 0.1
    */
@@ -236,7 +253,7 @@ aperture_device_manager_class_init (ApertureDeviceManagerClass *klass)
                   0,
                   NULL, NULL, NULL,
                   G_TYPE_NONE,
-                  1, G_TYPE_INT);
+                  1, APERTURE_TYPE_CAMERA);
 }
 
 
@@ -319,34 +336,42 @@ aperture_device_manager_get_num_cameras (ApertureDeviceManager *self)
 /**
  * aperture_device_manager_next_camera:
  * @self: an #ApertureDeviceManager
- * @idx: a camera index
+ * @camera: (nullable): an #ApertureCamera
  *
- * Gets the next camera index after @idx, wrapping around if necesary. If there
- * are no cameras available, returns -1.
+ * Gets the next camera index after @camera. If there are no cameras available,
+ * returns %NULL.
  *
- * Returns: the index of the next camera, or -1 if there are no cameras
+ * If @camera is %NULL, the first camera will be returned.
+ *
+ * Returns: (transfer full): the next camera, or %NULL if there are no cameras
  * Since: 0.1
  */
-int
-aperture_device_manager_next_camera (ApertureDeviceManager *self, int idx)
+ApertureCamera *
+aperture_device_manager_next_camera (ApertureDeviceManager *self, ApertureCamera *camera)
 {
   int num_cameras;
+  int idx;
+
   g_return_val_if_fail (APERTURE_IS_DEVICE_MANAGER (self), 0);
-  g_return_val_if_fail (idx >= 0, 0);
+  g_return_val_if_fail (camera == NULL || APERTURE_IS_CAMERA (camera), NULL);
 
   num_cameras = aperture_device_manager_get_num_cameras (self);
 
   if (num_cameras == 0) {
-    return -1;
+    return NULL;
   }
 
-  idx ++;
+  if (camera == NULL) {
+    idx = 0;
+  } else {
+    idx = find_camera_in_list_model (G_LIST_MODEL (self->device_list), camera) + 1;
+  }
 
   if (idx >= num_cameras) {
-    return 0;
-  } else {
-    return idx;
+    idx = 0;
   }
+
+  return aperture_device_manager_get_camera (self, idx);
 }
 
 

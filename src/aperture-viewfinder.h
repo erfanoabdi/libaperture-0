@@ -26,6 +26,8 @@
 #endif
 
 #include <gtk/gtk.h>
+
+#include "aperture-camera.h"
 #include "aperture-enums.h"
 
 
@@ -56,7 +58,7 @@ ApertureViewfinder      *aperture_viewfinder_new                     (void);
 void                     aperture_viewfinder_set_camera              (ApertureViewfinder *self,
                                                                       ApertureCamera     *camera,
                                                                       GError            **error);
-int                      aperture_viewfinder_get_camera              (ApertureViewfinder *self);
+ApertureCamera          *aperture_viewfinder_get_camera              (ApertureViewfinder *self);
 ApertureViewfinderState  aperture_viewfinder_get_state               (ApertureViewfinder *self);
 void                     aperture_viewfinder_set_detect_barcodes     (ApertureViewfinder *self,
                                                                       gboolean            detect_barcodes);

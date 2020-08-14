@@ -18,6 +18,17 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 
+/**
+ * SECTION:aperture-camera
+ * @title: ApertureCamera
+ * @short_description: A camera device
+ *
+ * #ApertureCamera represents a camera plugged into the device. It is used to
+ * query information about the camera or change its parameters.
+ *
+ * Since: 0.1
+ */
+
 
 #include <gst/gst.h>
 
