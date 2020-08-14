@@ -37,8 +37,13 @@ int
 main (int argc, char **argv)
 {
   g_autoptr(GtkApplication) app;
+  char *diagnostic;
 
   aperture_init (&argc, &argv);
+
+  diagnostic = aperture_get_diagnostic_info ();
+  g_print ("%s\n", diagnostic);
+  g_free (diagnostic);
 
   app = gtk_application_new ("io.gnome.Aperture.Demo", G_APPLICATION_FLAGS_NONE);
 

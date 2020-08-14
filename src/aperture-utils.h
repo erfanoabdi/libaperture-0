@@ -61,4 +61,6 @@ gboolean        aperture_is_barcode_detection_enabled (void);
 
 ApertureBarcode aperture_barcode_type_from_string     (const char *string);
 
+char           *aperture_get_diagnostic_info          (void);
+
 G_END_DECLS

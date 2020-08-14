@@ -20,8 +20,13 @@
 
 
 #include <gst/gst.h>
+#include <gtk/gtk.h>
 
+#include "aperture-build-info.h"
 #include "aperture-utils.h"
+
+
+#define BOOL_STR(x) (x ? "TRUE" : "FALSE")
 
 
 static gboolean initialized = FALSE;
@@ -122,6 +127,105 @@ aperture_is_barcode_detection_enabled (void)
 {
   g_autoptr(GstElementFactory) factory = gst_element_factory_find ("zbar");
   return factory != NULL;
+}
+
+
+/* Convenience function to read the contents of a file, and fail gracefully by
+ * returning an empty string. */
+static char *
+read_file (const char *filename) {
+  g_autoptr(GFile) file = g_file_new_for_path (filename);
+  g_autoptr(GError) err = NULL;
+  char *contents = NULL;
+
+  g_file_load_contents (file, NULL, &contents, NULL, NULL, &err);
+
+  if (err) {
+    return g_strdup ("");
+  } else {
+    return contents;
+  }
+}
+
+
+/**
+ * aperture_get_diagnostic_info:
+ *
+ * Gets a string containing useful debugging information, suitable for
+ * including in bug reports, for example. This could include versions of
+ * relevant libraries, basic software and hardware information, etc.
+ *
+ * No guarantees are made about the format of the string.
+ *
+ * Returns: (transfer full): the diagnostic string. Free with g_free().
+ * Since: 0.1
+ */
+char *
+aperture_get_diagnostic_info (void)
+{
+  g_autoptr(GstDeviceMonitor) monitor = NULL;
+  g_autolist(GstDevice) devices = NULL;
+  g_autoptr(GString) device_info = g_string_new (NULL);
+  g_autofree char *etc_os_release = read_file ("/etc/os-release");
+
+  if (gst_is_initialized ()) {
+    int n = 0;
+
+    monitor = gst_device_monitor_new ();
+    gst_device_monitor_add_filter (monitor, "Source/Video", NULL);
+    gst_device_monitor_start (monitor);
+    devices = gst_device_monitor_get_devices (monitor);
+    gst_device_monitor_stop (monitor);
+
+    for (GList *l = devices; l != NULL; l = l->next) {
+      GstDevice *device = l->data;
+      g_autoptr(GstStructure) props = gst_device_get_properties (device);
+      g_autoptr(GstCaps) caps = gst_device_get_caps (device);
+
+      g_string_append_printf (
+        device_info,
+        "  [devices.%d]\n"
+        "    name = %s\n"
+        "    properties = %s\n"
+        "    caps = %s\n"
+        ,
+        n ++,
+        gst_object_get_name (GST_OBJECT (device)),
+        gst_structure_to_string (props),
+        gst_caps_to_string (caps)
+      );
+    }
+  }
+
+  return g_strdup_printf (
+    "[/etc/os-release]\n"
+    "%s\n"
+    "[GLib]\n"
+    "  version = %d.%d.%d\n"
+
+    "[GTK]\n"
+    "  version = %d.%d.%d\n"
+
+    "[GStreamer]\n"
+    "  version = %d.%d.%d\n"
+    "  initialized = %s\n"
+
+    "[Aperture]\n"
+    "  version = %d.%d.%d\n"
+    "  initialized = %s\n"
+    "  zbar_enabled = %s\n"
+    "%s"
+    ,
+    etc_os_release,
+    GLIB_MAJOR_VERSION, GLIB_MINOR_VERSION, GLIB_MICRO_VERSION,
+    GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION,
+    GST_VERSION_MAJOR, GST_VERSION_MINOR, GST_VERSION_MICRO,
+    BOOL_STR (gst_is_initialized ()),
+    APERTURE_MAJOR_VERSION, APERTURE_MINOR_VERSION, APERTURE_MICRO_VERSION,
+    BOOL_STR (aperture_is_initialized ()),
+    BOOL_STR (aperture_is_barcode_detection_enabled ()),
+    device_info->str
+  );
 }
 
 
