@@ -62,7 +62,7 @@ libaperture_generated_headers += libaperture_enums[1]
 # Create the library
 libaperture_lib = shared_library(aperture_library_name,
   libaperture_sources, libaperture_headers,
-  dependencies: [ libaperture_deps, libm ],
+  dependencies: [ libaperture_deps ],
   c_args: libaperture_c_flags,
   version: aperture_api_version,
   install: true,
@@ -113,5 +113,4 @@ pkgconfig.generate(libaperture_lib,
   subdirs: aperture_library_name,
   filebase: aperture_library_name,
   requires: libaperture_deps,
-  libraries: libm
 )
