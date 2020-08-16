@@ -19,17 +19,6 @@ libaperture_sources = files(
 )
 
 
-configure_file(
-  output: 'aperture-build-info.h',
-  configuration: {
-    'APERTURE_MAJOR_VERSION': aperture_major,
-    'APERTURE_MINOR_VERSION': aperture_minor,
-    'APERTURE_MICRO_VERSION': aperture_micro,
-  }
-)
-libaperture_generated_headers += ['aperture-build-info.h']
-
-
 libaperture_c_flags = [
   '-DG_LOG_DOMAIN="Aperture"',
   '-D_LIBAPERTURE_COMPILATION',
@@ -39,6 +28,19 @@ libaperture_c_flags = [
 
 libaperture_header_install_dir = get_option('includedir') / aperture_library_name
 install_headers(libaperture_headers, install_dir: libaperture_header_install_dir)
+
+
+configure_file(
+  output: 'aperture-build-info.h',
+  configuration: {
+    'APERTURE_MAJOR_VERSION': aperture_major,
+    'APERTURE_MINOR_VERSION': aperture_minor,
+    'APERTURE_MICRO_VERSION': aperture_micro,
+  },
+  install: true,
+  install_dir: libaperture_header_install_dir
+)
+libaperture_generated_headers += ['aperture-build-info.h']
 
 libaperture_enum_headers = files(
   'aperture-utils.h',
