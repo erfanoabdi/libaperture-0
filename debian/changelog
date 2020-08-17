@@ -1,0 +1,5 @@
+libaperture-0 (0.0.0+git20200816-1) unstable; urgency=medium
+
+  * Initial Debian release
+
+ -- Arnaud Ferraris <arnaud.ferraris@gmail.com>  Mon, 06 Jul 2020 11:53:19 +0200
