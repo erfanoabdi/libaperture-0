@@ -80,7 +80,7 @@ aperture_device_init (ApertureDevice *self)
  *
  * Gets the singleton instance of #ApertureDevice.
  *
- * Returns: (transfer full): the #ApertureDevice
+ * Returns: (transfer none): the #ApertureDevice
  */
 ApertureDevice *
 aperture_device_get_instance (void)

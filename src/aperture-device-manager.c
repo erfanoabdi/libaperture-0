@@ -70,7 +70,8 @@ find_device_in_list_model (GListModel *model, GstDevice *gst_device, uint *posit
   int n = g_list_model_get_n_items (model);
 
   for (i = 0; i < n; i ++) {
-    g_set_object (&camera, g_list_model_get_item (model, i));
+    g_clear_object (&camera);
+    camera = g_list_model_get_item (model, i);
     if (aperture_camera_get_gst_device (camera) == gst_device) {
       *position = i;
       return TRUE;
@@ -90,7 +91,8 @@ find_camera_in_list_model (GListModel *model, ApertureCamera *camera) {
   int n = g_list_model_get_n_items (model);
 
   for (i = 0; i < n; i ++) {
-    g_set_object (&current, g_list_model_get_item (model, i));
+    g_clear_object (&current);
+    current = g_list_model_get_item (model, i);
     if (camera == current) {
       return i;
     }
@@ -106,7 +108,7 @@ static ApertureCamera *
 add_camera (ApertureDeviceManager *self, GstDevice *gst_device)
 {
   ApertureDevice *device = aperture_device_get_instance ();
-  ApertureCamera *camera = aperture_device_get_camera (device, gst_device);
+  g_autoptr(ApertureCamera) camera = aperture_device_get_camera (device, gst_device);
 
   /* aperture_device_get_camera might return NULL, which means we should
    * ignore this device */
@@ -124,7 +126,7 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
 {
   ApertureDeviceManager *self = APERTURE_DEVICE_MANAGER (user_data);
   g_autoptr(GstDevice) device = NULL;
-  g_autoptr(ApertureCamera) camera = NULL;
+  ApertureCamera *camera;
   guint device_index = -1;
 
   switch (message->type) {
@@ -134,8 +136,6 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
 
     camera = add_camera (self, device);
     if (camera) {
-      device_index = g_list_model_get_n_items (G_LIST_MODEL (self->device_list)) - 1;
-
       g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
       g_signal_emit (self, signals[SIGNAL_CAMERA_ADDED], 0, camera);
     }
@@ -151,6 +151,7 @@ on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
 
       g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
       g_signal_emit (self, signals[SIGNAL_CAMERA_REMOVED], 0, camera);
+      g_object_unref (camera);
     }
 
     break;
@@ -222,7 +223,7 @@ aperture_device_manager_class_init (ApertureDeviceManagerClass *klass)
   /**
    * ApertureDeviceManager::camera-added:
    * @self: the #ApertureDeviceManager
-   * @camera_index: the index of the new camera
+   * @camera_index: the new camera
    *
    * Emitted when a camera is discovered.
    *
@@ -240,7 +241,7 @@ aperture_device_manager_class_init (ApertureDeviceManagerClass *klass)
   /**
    * ApertureDeviceManager::camera-removed:
    * @self: the #ApertureDeviceManager
-   * @camera_index: the index the camera had
+   * @camera_index: the (now removed) camera
    *
    * Emitted when a camera is removed (typically because it has been unplugged).
    *
