@@ -64,7 +64,7 @@ aperture_camera_do_flash_async_impl (ApertureCamera *self,
                                      GAsyncReadyCallback callback,
                                      gpointer user_data)
 {
-  g_autoptr(GTask) task = NULL;
+  GTask *task;
 
   g_return_if_fail (APERTURE_IS_CAMERA (self));
   g_return_if_fail (cancellable == NULL || G_IS_CANCELLABLE (cancellable));

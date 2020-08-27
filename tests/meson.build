@@ -10,6 +10,7 @@ test_sources = files(
   'main.c',
 
   'test-barcodes.c',
+  'test-camera.c',
   'test-device-manager.c',
   'test-viewfinder.c',
 
