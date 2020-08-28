@@ -752,6 +752,7 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, ApertureCamera *camera
     if (camera_src) {
       g_object_set (wrapper, "video-source", camera_src, NULL);
       g_object_set (self->camerabin, "camera-source", wrapper, NULL);
+      g_clear_object (&self->camera_src);
       self->camera_src = camera_src;
     }
   }

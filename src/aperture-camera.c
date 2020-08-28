@@ -96,6 +96,11 @@ aperture_camera_get_source_element_impl (ApertureCamera *self, GstElement *previ
   g_return_val_if_fail (previous == NULL || GST_IS_ELEMENT (previous), NULL);
 
   priv = aperture_camera_get_instance_private (self);
+
+  if (gst_device_reconfigure_element (priv->gst_device, previous)) {
+    return NULL;
+  }
+
   return gst_device_create_element (priv->gst_device, NULL);
 }
 
