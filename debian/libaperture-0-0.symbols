@@ -2,11 +2,23 @@ libaperture-0.so.0 libaperture-0-0 #MINVER#
 * Build-Depends-Package: libaperture-0-dev
  aperture_barcode_get_type@Base 0.0.0+git20200619
  aperture_barcode_type_from_string@Base 0.0.0+git20200619
+ aperture_camera_do_flash_async@Base 0.1.0+git20200908
+ aperture_camera_do_flash_finish@Base 0.1.0+git20200908
+ aperture_camera_get_gst_device@Base 0.1.0+git20200908
+ aperture_camera_get_source_element@Base 0.1.0+git20200908
+ aperture_camera_get_type@Base 0.1.0+git20200908
+ aperture_camera_new@Base 0.1.0+git20200908
+ aperture_camera_set_torch@Base 0.1.0+git20200908
+ aperture_device_get_camera@Base 0.1.0+git20200908
+ aperture_device_get_instance@Base 0.1.0+git20200908
+ aperture_device_get_type@Base 0.1.0+git20200908
+ aperture_device_list_cameras@Base 0.1.0+git20200908
+ aperture_device_manager_get_camera@Base 0.1.0+git20200908
  aperture_device_manager_get_instance@Base 0.0.0+git20200619
  aperture_device_manager_get_num_cameras@Base 0.0.0+git20200619
  aperture_device_manager_get_type@Base 0.0.0+git20200619
- (optional)aperture_device_manager_get_video_source@Base 0.0.0+git20200619
  aperture_device_manager_next_camera@Base 0.0.0+git20200619
+ aperture_get_diagnostic_info@Base 0.1.0+git20200908
  aperture_init@Base 0.0.0+git20200619
  aperture_is_barcode_detection_enabled@Base 0.0.0+git20200619
  aperture_is_initialized@Base 0.0.0+git20200619

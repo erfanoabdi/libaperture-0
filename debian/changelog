@@ -1,5 +1,5 @@
-libaperture-0 (0.0.0+git20200816-1) unstable; urgency=medium
+libaperture-0 (0.1.0+git20200908-1) unstable; urgency=medium
 
-  * Initial Debian release
+  * Initial Debian release (Closes: #969745)
 
  -- Arnaud Ferraris <arnaud.ferraris@gmail.com>  Mon, 06 Jul 2020 11:53:19 +0200

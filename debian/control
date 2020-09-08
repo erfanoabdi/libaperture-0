@@ -1,7 +1,10 @@
 Source: libaperture-0
 Section: libs
 Priority: optional
-Maintainer: Arnaud Ferraris <arnaud.ferraris@gmail.com>
+Maintainer: DebianOnMobile Maintainers <debian-on-mobile-maintainers@alioth-lists.debian.net>
+Uploaders:
+ Arnaud Ferraris <arnaud.ferraris@gmail.com>,
+ Henry-Nicolas Tourneur <debian@nilux.be>
 Build-Depends:
  appstream-util,
  debhelper-compat (= 13),
@@ -20,8 +23,8 @@ Build-Depends:
  gstreamer1.0-plugins-good <!nocheck>,
 Standards-Version: 4.5.0
 Homepage: https://gitlab.gnome.org/jwestman/libaperture
-Vcs-Browser: https://salsa.debian.org/a-wai/libaperture
-Vcs-Git: https://salsa.debian.org/a-wai/libaperture.git
+Vcs-Git: https://salsa.debian.org/DebianOnMobile-team/libaperture.git
+Vcs-Browser: https://salsa.debian.org/DebianOnMobile-team/libaperture
 Rules-Requires-Root: no
 
 Package: libaperture-0-0
