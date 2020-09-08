@@ -27,6 +27,8 @@
 
 #include <glib-object.h>
 
+#include "aperture-camera.h"
+
 
 G_BEGIN_DECLS
 
@@ -38,7 +40,9 @@ G_DECLARE_FINAL_TYPE (ApertureDeviceManager, aperture_device_manager, APERTURE, 
 ApertureDeviceManager *aperture_device_manager_get_instance    (void);
 
 int                    aperture_device_manager_get_num_cameras (ApertureDeviceManager *self);
-int                    aperture_device_manager_next_camera     (ApertureDeviceManager *self,
+ApertureCamera        *aperture_device_manager_next_camera     (ApertureDeviceManager *self,
+                                                                ApertureCamera        *camera);
+ApertureCamera        *aperture_device_manager_get_camera      (ApertureDeviceManager *self,
                                                                 int                    idx);
 
 

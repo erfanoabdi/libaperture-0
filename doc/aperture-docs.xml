@@ -28,6 +28,7 @@
 
   <chapter id="api-reference">
     <title>API Reference</title>
+    <xi:include href="xml/aperture-camera.xml"/>
     <xi:include href="xml/aperture-device-manager.xml"/>
     <xi:include href="xml/aperture-viewfinder.xml"/>
     <xi:include href="xml/aperture-utils.xml"/>

@@ -174,11 +174,11 @@ on_switch_camera_clicked (GtkButton *button, ApertureDemoWindow *self)
    * aperture_device_manager_next_camera() to find the next camera, and
    * start using that. */
 
-  int camera = aperture_viewfinder_get_camera (self->viewfinder);
+  g_autoptr(ApertureCamera) camera = NULL;
   g_autoptr(ApertureDeviceManager) manager = aperture_device_manager_get_instance ();
   g_autoptr(GError) err = NULL;
 
-  camera = aperture_device_manager_next_camera (manager, camera);
+  camera = aperture_device_manager_next_camera (manager, aperture_viewfinder_get_camera (self->viewfinder));
   aperture_viewfinder_set_camera (self->viewfinder, camera, &err);
 
   if (err) {

@@ -71,12 +71,14 @@
  */
 
 
-
+#include "pipeline/aperture-pipeline-tee.h"
+#include "private/aperture-camera-private.h"
 #include "private/aperture-private.h"
-#include "private/aperture-device-manager-private.h"
+#include "aperture-camera.h"
+#include "aperture-device-manager.h"
 #include "aperture-utils.h"
 #include "aperture-viewfinder.h"
-#include "pipeline/aperture-pipeline-tee.h"
+
 
 typedef struct {
   GstElement *bin;
@@ -90,7 +92,8 @@ struct _ApertureViewfinder
 
   ApertureDeviceManager *devices;
 
-  int camera;
+  ApertureCamera *camera;
+  GstElement *camera_src;
   ApertureViewfinderState state;
 
   GstElement *branch_zbar;
@@ -405,11 +408,11 @@ on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
 
 
 static void
-on_camera_added (ApertureViewfinder *self, int camera_index, ApertureDeviceManager *devices)
+on_camera_added (ApertureViewfinder *self, ApertureCamera *camera, ApertureDeviceManager *devices)
 {
   if (self->state == APERTURE_VIEWFINDER_STATE_NO_CAMERAS) {
     set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-    aperture_viewfinder_set_camera (self, camera_index, NULL);
+    aperture_viewfinder_set_camera (self, camera, NULL);
   }
 }
 
@@ -417,11 +420,12 @@ on_camera_added (ApertureViewfinder *self, int camera_index, ApertureDeviceManag
 /* Handler for when a camera is removed (unplugged, etc). If that was our
  * current camera, switch to a different camera. */
 static void
-on_camera_removed (ApertureViewfinder *self, int camera_index, ApertureDeviceManager *devices)
+on_camera_removed (ApertureViewfinder *self, ApertureCamera *camera, ApertureDeviceManager *devices)
 {
   g_autoptr(GError) err = NULL;
+  g_autoptr(ApertureCamera) next_camera = NULL;
 
-  if (camera_index == self->camera) {
+  if (camera == self->camera) {
     int num_cameras = aperture_device_manager_get_num_cameras (self->devices);
 
     /* if the active camera was disconnected, any active operations should be
@@ -432,11 +436,11 @@ on_camera_removed (ApertureViewfinder *self, int camera_index, ApertureDeviceMan
     cancel_current_operation (self, err);
 
     if (num_cameras == 0) {
+      aperture_viewfinder_set_camera (self, NULL, NULL);
       set_state (self, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
-    } else if (camera_index >= num_cameras) {
-      aperture_viewfinder_set_camera (self, 0, NULL);
     } else {
-      aperture_viewfinder_set_camera (self, camera_index, NULL);
+      next_camera = aperture_device_manager_get_camera (self->devices, 0);
+      aperture_viewfinder_set_camera (self, next_camera, NULL);
     }
   }
 }
@@ -468,7 +472,7 @@ aperture_viewfinder_get_property (GObject    *object,
 
   switch (prop_id) {
   case PROP_CAMERA:
-    g_value_set_int (value, aperture_viewfinder_get_camera (self));
+    g_value_set_object (value, aperture_viewfinder_get_camera (self));
     break;
   case PROP_STATE:
     g_value_set_enum (value, aperture_viewfinder_get_state (self));
@@ -492,7 +496,7 @@ aperture_viewfinder_set_property (GObject      *object,
 
   switch (prop_id) {
   case PROP_CAMERA:
-    aperture_viewfinder_set_camera (self, g_value_get_int (value), NULL);
+    aperture_viewfinder_set_camera (self, g_value_get_object (value), NULL);
     break;
   case PROP_DETECT_BARCODES:
     aperture_viewfinder_set_detect_barcodes (self, g_value_get_boolean (value));
@@ -545,10 +549,9 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
   /**
    * ApertureViewfinder:camera:
    *
-   * The index of the camera device that is currently being used.
+   * The camera that is currently being used.
    *
-   * Use #ApertureDeviceManager to get the number of available cameras. Setting
-   * this property will switch cameras.
+   * Use #ApertureDeviceManager to obtain #ApertureCamera objects.
    *
    * To successfully switch cameras, the #ApertureViewfinder must be in the
    * %APERTURE_VIEWFINDER_STATE_READY state. This is because switching camera
@@ -557,11 +560,11 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
    * Since: 0.1
    */
   props [PROP_CAMERA] =
-    g_param_spec_int ("camera",
-                      "Camera",
-                      "The index of the camera to use",
-                      -1, G_MAXINT, -1,
-                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_EXPLICIT_NOTIFY);
+    g_param_spec_object ("camera",
+                         "Camera",
+                         "The camera to use",
+                         APERTURE_TYPE_CAMERA,
+                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_EXPLICIT_NOTIFY);
 
   /**
    * ApertureViewfinder:state:
@@ -636,6 +639,8 @@ aperture_viewfinder_class_init (ApertureViewfinderClass *klass)
 static void
 aperture_viewfinder_init (ApertureViewfinder *self)
 {
+  g_autoptr(ApertureCamera) camera = NULL;
+
   aperture_private_ensure_initialized ();
 
   self->gtksink = create_element (self, "gtksink");
@@ -657,7 +662,7 @@ aperture_viewfinder_init (ApertureViewfinder *self)
   create_photo_capture_bin (self, &self->capture);
   aperture_pipeline_tee_add_branch (self->tee, self->capture.bin);
 
-  self->camera = -1;
+  self->camera = NULL;
   self->devices = aperture_device_manager_get_instance ();
 
   g_signal_connect_object (self->devices,
@@ -674,7 +679,8 @@ aperture_viewfinder_init (ApertureViewfinder *self)
 
   if (aperture_device_manager_get_num_cameras (self->devices) > 0) {
     set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-    aperture_viewfinder_set_camera (self, 0, NULL);
+    camera = aperture_device_manager_get_camera (self->devices, 0);
+    aperture_viewfinder_set_camera (self, camera, NULL);
   } else {
     set_state (self, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
   }
@@ -711,14 +717,14 @@ aperture_viewfinder_new (void)
  * Since: 0.1
  */
 void
-aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera, GError **error)
+aperture_viewfinder_set_camera (ApertureViewfinder *self, ApertureCamera *camera, GError **error)
 {
   g_autoptr(GstElement) wrapper = NULL;
   g_autoptr(GstElement) camera_src = NULL;
   GError *err = NULL;
 
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
-  g_return_if_fail (camera >= -1 && camera < aperture_device_manager_get_num_cameras (self->devices));
+  g_return_if_fail (camera == NULL || APERTURE_IS_CAMERA (camera));
 
   get_current_operation (self, &err);
   set_error_if_not_ready (self, &err);
@@ -731,18 +737,26 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera, GError **e
     return;
   }
 
-  self->camera = camera;
-
-  if (camera != -1) {
-    wrapper = create_element (self, "wrappercamerabinsrc");
-    camera_src = aperture_device_manager_get_video_source (self->devices, self->camera);
-    g_object_set (wrapper, "video-source", camera_src, NULL);
-    g_object_set (self->camerabin, "camera-source", wrapper, NULL);
-  }
+  g_set_object (&self->camera, camera);
 
   /* Must change camerabin to NULL and back to PLAYING for the change to take
    * effect */
   gst_element_set_state (self->camerabin, GST_STATE_NULL);
+
+  if (camera != NULL) {
+    wrapper = create_element (self, "wrappercamerabinsrc");
+    camera_src = aperture_camera_get_source_element (camera, self->camera_src);
+
+    /* camera_src might be NULL, which means the element was reconfigured and
+     * we should keep using it */
+    if (camera_src) {
+      g_object_set (wrapper, "video-source", camera_src, NULL);
+      g_object_set (self->camerabin, "camera-source", wrapper, NULL);
+      g_clear_object (&self->camera_src);
+      self->camera_src = camera_src;
+    }
+  }
+
   if (gtk_widget_get_realized (GTK_WIDGET (self->sink_widget))) {
     gst_element_set_state (self->camerabin, GST_STATE_PLAYING);
   }
@@ -755,16 +769,16 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, int camera, GError **e
  * aperture_viewfinder_get_camera:
  * @self: an #ApertureViewfinder
  *
- * Gets the index of the camera that the #ApertureViewfinder is currently using. See
+ * Gets the camera that the #ApertureViewfinder is currently using. See
  * #ApertureViewfinder:camera.
  *
- * Returns: the index of the current camera
+ * Returns: (transfer none): the current camera
  * Since: 0.1
  */
-int
+ApertureCamera *
 aperture_viewfinder_get_camera (ApertureViewfinder *self)
 {
-  g_return_val_if_fail (APERTURE_IS_VIEWFINDER (self), 0);
+  g_return_val_if_fail (APERTURE_IS_VIEWFINDER (self), NULL);
   return self->camera;
 }
 

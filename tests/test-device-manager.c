@@ -22,7 +22,7 @@
 #include <glib.h>
 #include <aperture.h>
 
-#include "private/aperture-device-manager-private.h"
+#include "private/aperture-camera-private.h"
 #include "dummy-device-provider.h"
 #include "utils.h"
 
@@ -69,15 +69,18 @@ test_device_manager_refcounting ()
 static gboolean
 manager_contains_test_device (ApertureDeviceManager *manager)
 {
-  g_autoptr(GstElement) element = NULL;
+  g_autoptr(ApertureCamera) camera = NULL;
   int num_dummy_cameras = 0;
   int num_cameras = aperture_device_manager_get_num_cameras (manager);
   int i;
 
   for (i = 0; i < num_cameras; i ++) {
-    g_set_object (&element, aperture_device_manager_get_video_source (manager, i));
-    if (g_str_has_prefix (gst_object_get_name (GST_OBJECT (element)), "videotestsrc")) {
-      num_dummy_cameras ++;
+    g_set_object (&camera, aperture_device_manager_get_camera (manager, i));
+    if (APERTURE_IS_CAMERA (camera)) {
+      g_autoptr(GstElement) element = aperture_camera_get_source_element (camera, NULL);
+      if (g_str_has_prefix (gst_object_get_name (GST_OBJECT (element)), "videotestsrc")) {
+        num_dummy_cameras ++;
+      }
     }
   }
 
@@ -140,32 +143,58 @@ test_device_manager_next_camera ()
 {
   g_autoptr(ApertureDeviceManager) manager = aperture_device_manager_get_instance ();
   g_autoptr(DummyDeviceProvider) provider = DUMMY_DEVICE_PROVIDER (gst_device_provider_factory_get_by_name ("dummy-device-provider"));
+  g_autoptr(ApertureCamera) camera0A = NULL;
+  g_autoptr(ApertureCamera) camera0B = NULL;
+  g_autoptr(ApertureCamera) camera1A = NULL;
+  g_autoptr(ApertureCamera) camera1B = NULL;
+  g_autoptr(ApertureCamera) camera1C = NULL;
+  g_autoptr(ApertureCamera) camera1D = NULL;
+  g_autoptr(ApertureCamera) camera2A = NULL;
   int num_cameras;
-  int camera = 0;
-  TestUtilsCallback added_callback;
 
-  /* make sure there are multiple cameras, or the test won't work */
-  testutils_callback_init (&added_callback);
-  g_signal_connect_swapped (manager, "camera-added", G_CALLBACK (testutils_callback_call), &added_callback);
-  dummy_device_provider_add (provider);
-  dummy_device_provider_add (provider);
-  testutils_callback_assert_called (&added_callback, 1000);
-  testutils_callback_assert_called (&added_callback, 1000);
+  /* Zero cameras test cases */
+  num_cameras = aperture_device_manager_get_num_cameras (manager);
+  g_assert_cmpint (num_cameras, ==, 0);
 
+  camera0A = aperture_device_manager_next_camera (manager, NULL);
+  g_assert_null (camera0A);
+
+  /* One camera test cases */
+  dummy_device_provider_add (provider);
+  testutils_wait_for_device_change (manager);
+  num_cameras = aperture_device_manager_get_num_cameras (manager);
+  g_assert_cmpint (num_cameras, ==, 1);
+
+  camera1A = aperture_device_manager_next_camera (manager, NULL);
+  g_assert_nonnull (camera1A);
+
+  camera1B = aperture_device_manager_next_camera (manager, NULL);
+  g_assert_true (camera1A == camera1B);
+
+  /* Two cameras test cases */
+  dummy_device_provider_add (provider);
+  testutils_wait_for_device_change (manager);
   num_cameras = aperture_device_manager_get_num_cameras (manager);
   g_assert_cmpint (num_cameras, ==, 2);
 
-  camera = aperture_device_manager_next_camera (manager, camera);
-  g_assert_cmpint (camera, ==, 1);
+  camera2A = aperture_device_manager_next_camera (manager, camera1A);
+  g_assert_true (camera1A != camera2A);
 
-  camera = aperture_device_manager_next_camera (manager, num_cameras - 1);
-  g_assert_cmpint (camera, ==, 0);
+  camera1C = aperture_device_manager_next_camera (manager, camera2A);
+  g_assert_true (camera1C == camera1A);
 
-  camera = aperture_device_manager_next_camera (manager, num_cameras);
-  g_assert_cmpint (camera, ==, 0);
+  /* Removed camera test cases */
+  dummy_device_provider_remove (provider);
+  testutils_wait_for_device_change (manager);
 
-  camera = aperture_device_manager_next_camera (manager, num_cameras + 100);
-  g_assert_cmpint (camera, ==, 0);
+  camera1D = aperture_device_manager_next_camera (manager, camera2A);
+  g_assert_true (camera1D == camera1A);
+
+  dummy_device_provider_remove (provider);
+  testutils_wait_for_device_change (manager);
+
+  camera0B = aperture_device_manager_next_camera (manager, camera1A);
+  g_assert_null (camera0B);
 }
 
 

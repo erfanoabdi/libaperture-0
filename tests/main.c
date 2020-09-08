@@ -23,11 +23,11 @@
 #include <aperture.h>
 
 #include "private/aperture-private.h"
-#include "private/aperture-device-manager-private.h"
 #include "dummy-device-provider.h"
 
 
 void add_barcodes_tests (void);
+void add_camera_tests (void);
 void add_device_manager_tests (void);
 void add_viewfinder_tests (void);
 
@@ -43,6 +43,7 @@ main (int argc, char **argv)
   dummy_device_provider_register ();
 
   add_barcodes_tests ();
+  add_camera_tests ();
   add_device_manager_tests ();
   add_viewfinder_tests ();
 

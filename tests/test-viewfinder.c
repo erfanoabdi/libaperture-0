@@ -22,7 +22,6 @@
 #include <glib.h>
 #include <aperture.h>
 
-#include "private/aperture-device-manager-private.h"
 #include "dummy-device-provider.h"
 #include "utils.h"
 
@@ -41,15 +40,17 @@ test_viewfinder_no_camera_state ()
   viewfinder = aperture_viewfinder_new ();
   g_object_ref_sink (viewfinder);
   g_assert_cmpint (aperture_viewfinder_get_state (viewfinder), ==, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
+  g_assert_null (aperture_viewfinder_get_camera (viewfinder));
 
   dummy_device_provider_add (provider);
   testutils_wait_for_device_change (manager);
   g_assert_cmpint (aperture_viewfinder_get_state (viewfinder), ==, APERTURE_VIEWFINDER_STATE_READY);
-  g_assert_cmpint (aperture_viewfinder_get_camera (viewfinder), ==, 0);
+  g_assert_nonnull (aperture_viewfinder_get_camera (viewfinder));
 
   dummy_device_provider_remove (provider);
   testutils_wait_for_device_change (manager);
   g_assert_cmpint (aperture_viewfinder_get_state (viewfinder), ==, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
+  g_assert_null (aperture_viewfinder_get_camera (viewfinder));
 }
 
 
@@ -150,7 +151,7 @@ test_viewfinder_simultaneous_operations ()
   aperture_viewfinder_take_picture_async (viewfinder, NULL, (GAsyncReadyCallback) simultaneous_operations_on_picture_taken_1, &picture_callback_1);
 
   /* setting the camera should not work */
-  aperture_viewfinder_set_camera (viewfinder, 1, &err1);
+  aperture_viewfinder_set_camera (viewfinder, NULL, &err1);
   g_assert_error (err1, APERTURE_MEDIA_CAPTURE_ERROR, APERTURE_MEDIA_CAPTURE_ERROR_OPERATION_IN_PROGRESS);
 
   /* starting a video should not work */
