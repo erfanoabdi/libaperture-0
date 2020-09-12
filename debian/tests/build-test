@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+if [ -n "${DEB_HOST_GNU_TYPE:-}" ]; then
+    CROSS_COMPILE="$DEB_HOST_GNU_TYPE-"
+else
+    CROSS_COMPILE=
+fi
+
+APERTURE_FLAGS=$(${CROSS_COMPILE}pkg-config --cflags --libs aperture-0)
+GLIB_FLAGS=$(${CROSS_COMPILE}pkg-config --cflags --libs glib-2.0)
+GTK_FLAGS=$(${CROSS_COMPILE}pkg-config --cflags --libs gtk+-3.0)
+GST_FLAGS=$(${CROSS_COMPILE}pkg-config --cflags --libs gstreamer-plugins-base-1.0)
+PRIV_LIBS="-I../src/"
+
+cd tests/data
+glib-compile-resources tests.gresource.xml --c-name aperture --internal --generate --target aperture-resources.c --dependency-file aperture-resources.c.d
+glib-compile-resources tests.gresource.xml --c-name aperture --internal --generate --target aperture-resources.h
+cd ..
+${CROSS_COMPILE}gcc -o aperturetest *.c data/aperture-resources.c ${PRIV_LIBS} ${APERTURE_FLAGS} ${GLIB_FLAGS} ${GTK_FLAGS} ${GST_FLAGS}
+LC_ALL=C.UTF-8 xvfb-run -a -s -noreset ./aperturetest

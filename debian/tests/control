@@ -1,0 +1,11 @@
+Tests: build-test
+Depends:
+ build-essential,
+ gdc,
+ libaperture-0-dev,
+ libgstreamer-plugins-base1.0-dev,
+ libgtk-3-dev,
+ pkg-config,
+ xauth,
+ xvfb
+Restrictions: allow-stderr

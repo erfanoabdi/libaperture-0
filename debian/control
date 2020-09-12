@@ -4,23 +4,22 @@ Priority: optional
 Maintainer: DebianOnMobile Maintainers <debian-on-mobile-maintainers@alioth-lists.debian.net>
 Uploaders:
  Arnaud Ferraris <arnaud.ferraris@gmail.com>,
- Henry-Nicolas Tourneur <debian@nilux.be>
+ Henry-Nicolas Tourneur <debian@nilux.be>,
 Build-Depends:
  appstream-util,
  debhelper-compat (= 13),
  desktop-file-utils,
+ gstreamer1.0-gtk3 <!nocheck>,
+ gstreamer1.0-plugins-bad <!nocheck>,
+ gstreamer1.0-plugins-good <!nocheck>,
  gtk-doc-tools,
  libgirepository1.0-dev,
  libgstreamer-plugins-base1.0-dev,
  libgtk-3-dev,
  meson,
  valac,
-# Needed for tests
  xauth <!nocheck>,
  xvfb <!nocheck>,
- gstreamer1.0-gtk3 <!nocheck>,
- gstreamer1.0-plugins-bad <!nocheck>,
- gstreamer1.0-plugins-good <!nocheck>,
 Standards-Version: 4.5.0
 Homepage: https://gitlab.gnome.org/jwestman/libaperture
 Vcs-Git: https://salsa.debian.org/DebianOnMobile-team/libaperture.git
@@ -31,11 +30,11 @@ Package: libaperture-0-0
 Architecture: any
 Multi-Arch: same
 Depends:
- ${misc:Depends},
- ${shlibs:Depends},
  gstreamer1.0-gtk3,
  gstreamer1.0-plugins-bad,
  gstreamer1.0-plugins-good,
+ ${misc:Depends},
+ ${shlibs:Depends},
 Description: Camera library for GTK3
  libaperture provides GTK widgets and GObjects to ease developing
  applications for mobile phones.
@@ -47,13 +46,14 @@ Architecture: any
 Multi-Arch: same
 Section: libdevel
 Depends:
- ${misc:Depends},
- ${shlibs:Depends},
  gir1.2-aperture-0 (= ${binary:Version}),
  libaperture-0-0 (= ${binary:Version}),
- libgtk-3-dev,
  libgstreamer-plugins-base1.0-dev,
-Recommends: pkg-config
+ libgtk-3-dev,
+ ${misc:Depends},
+ ${shlibs:Depends},
+Recommends:
+ pkg-config,
 Description: Development files for libaperture
  libaperture provides GTK widgets and GObjects to ease developing
  applications for mobile phones.
@@ -76,8 +76,9 @@ Description: GObject introspection files for libaperture
 Package: aperture-0-examples
 Section: x11
 Architecture: any
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
 Description: Example programs for libaperture
  libaperture provides GTK widgets and GObjects to ease developing
  applications for mobile phones.
