@@ -38,7 +38,7 @@ Depends:
  ${shlibs:Depends},
 Description: Camera library for GTK3
  libaperture provides GTK widgets and GObjects to ease developing
- applications for mobile phones.
+ camera applications for mobile phones.
  .
  This package contains the shared library.
 
@@ -57,7 +57,7 @@ Recommends:
  pkg-config,
 Description: Development files for libaperture
  libaperture provides GTK widgets and GObjects to ease developing
- applications for mobile phones.
+ camera applications for mobile phones.
  .
  This package contains the development files and documentation.
 
@@ -70,7 +70,7 @@ Depends:
  ${misc:Depends},
 Description: GObject introspection files for libaperture
  libaperture provides GTK widgets and GObjects to ease developing
- applications for mobile phones.
+ camera applications for mobile phones.
  .
  This package contains the GObject-introspection data in binary typelib format.
 
@@ -82,7 +82,7 @@ Depends:
  ${shlibs:Depends},
 Description: Example programs for libaperture
  libaperture provides GTK widgets and GObjects to ease developing
- applications for mobile phones.
+ camera applications for mobile phones.
  .
  This package contains example files and the demonstration program for
  libaperture.
