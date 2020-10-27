@@ -23,8 +23,8 @@ Build-Depends:
  xvfb <!nocheck>,
 Standards-Version: 4.5.0
 Homepage: https://gitlab.gnome.org/jwestman/libaperture
-Vcs-Git: https://salsa.debian.org/DebianOnMobile-team/libaperture.git
-Vcs-Browser: https://salsa.debian.org/DebianOnMobile-team/libaperture
+Vcs-Git: https://salsa.debian.org/DebianOnMobile-team/libaperture-0.git
+Vcs-Browser: https://salsa.debian.org/DebianOnMobile-team/libaperture-0
 Rules-Requires-Root: no
 
 Package: libaperture-0-0
