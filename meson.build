@@ -46,5 +46,3 @@ if get_option('demo')
   subdir('demo')
 endif
 
-subdir('tests')
-
