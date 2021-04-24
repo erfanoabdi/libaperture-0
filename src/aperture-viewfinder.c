@@ -406,46 +406,6 @@ on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
   return G_SOURCE_CONTINUE;
 }
 
-
-static void
-on_camera_added (ApertureViewfinder *self, ApertureCamera *camera, ApertureDeviceManager *devices)
-{
-  if (self->state == APERTURE_VIEWFINDER_STATE_NO_CAMERAS) {
-    set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-    aperture_viewfinder_set_camera (self, camera, NULL);
-  }
-}
-
-
-/* Handler for when a camera is removed (unplugged, etc). If that was our
- * current camera, switch to a different camera. */
-static void
-on_camera_removed (ApertureViewfinder *self, ApertureCamera *camera, ApertureDeviceManager *devices)
-{
-  g_autoptr(GError) err = NULL;
-  g_autoptr(ApertureCamera) next_camera = NULL;
-
-  if (camera == self->camera) {
-    int num_cameras = aperture_device_manager_get_num_cameras (self->devices);
-
-    /* if the active camera was disconnected, any active operations should be
-     * cancelled */
-    err = g_error_new (APERTURE_MEDIA_CAPTURE_ERROR,
-                       APERTURE_MEDIA_CAPTURE_ERROR_CAMERA_DISCONNECTED,
-                       "The active camera was disconnected during the operation");
-    cancel_current_operation (self, err);
-
-    if (num_cameras == 0) {
-      aperture_viewfinder_set_camera (self, NULL, NULL);
-      set_state (self, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
-    } else {
-      next_camera = aperture_device_manager_get_camera (self->devices, 0);
-      aperture_viewfinder_set_camera (self, next_camera, NULL);
-    }
-  }
-}
-
-
 /* VFUNCS */
 
 
@@ -454,7 +414,6 @@ aperture_viewfinder_finalize (GObject *object)
 {
   ApertureViewfinder *self = APERTURE_VIEWFINDER (object);
 
-  g_clear_object (&self->devices);
   g_clear_object (&self->camerabin);
   g_clear_object (&self->tee);
 
@@ -663,27 +622,9 @@ aperture_viewfinder_init (ApertureViewfinder *self)
   aperture_pipeline_tee_add_branch (self->tee, self->capture.bin);
 
   self->camera = NULL;
-  self->devices = aperture_device_manager_get_instance ();
 
-  g_signal_connect_object (self->devices,
-                           "camera-added",
-                           G_CALLBACK (on_camera_added),
-                           self,
-                           G_CONNECT_SWAPPED);
-
-  g_signal_connect_object (self->devices,
-                           "camera-removed",
-                           G_CALLBACK (on_camera_removed),
-                           self,
-                           G_CONNECT_SWAPPED);
-
-  if (aperture_device_manager_get_num_cameras (self->devices) > 0) {
-    set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-    camera = aperture_device_manager_get_camera (self->devices, 0);
-    aperture_viewfinder_set_camera (self, camera, NULL);
-  } else {
-    set_state (self, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
-  }
+  set_state (self, APERTURE_VIEWFINDER_STATE_READY);
+  aperture_viewfinder_set_camera (self, NULL, NULL);
 }
 
 
@@ -719,12 +660,10 @@ aperture_viewfinder_new (void)
 void
 aperture_viewfinder_set_camera (ApertureViewfinder *self, ApertureCamera *camera, GError **error)
 {
-  g_autoptr(GstElement) wrapper = NULL;
-  g_autoptr(GstElement) camera_src = NULL;
+  g_autoptr(GstElement) droidcam = NULL;
   GError *err = NULL;
 
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
-  g_return_if_fail (camera == NULL || APERTURE_IS_CAMERA (camera));
 
   get_current_operation (self, &err);
   set_error_if_not_ready (self, &err);
@@ -733,29 +672,15 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, ApertureCamera *camera
     return;
   }
 
-  if (self->camera == camera) {
-    return;
-  }
-
-  g_set_object (&self->camera, camera);
-
   /* Must change camerabin to NULL and back to PLAYING for the change to take
    * effect */
   gst_element_set_state (self->camerabin, GST_STATE_NULL);
 
-  if (camera != NULL) {
-    wrapper = create_element (self, "wrappercamerabinsrc");
-    camera_src = aperture_camera_get_source_element (camera, self->camera_src);
+  droidcam = create_element(self, "droidcamsrc");
 
-    /* camera_src might be NULL, which means the element was reconfigured and
-     * we should keep using it */
-    if (camera_src) {
-      g_object_set (wrapper, "video-source", camera_src, NULL);
-      g_object_set (self->camerabin, "camera-source", wrapper, NULL);
-      g_clear_object (&self->camera_src);
-      self->camera_src = camera_src;
-    }
-  }
+  //g_object_set(droidcam, "camera-device", 0, NULL);
+  g_object_set(self->camerabin, "camera-source", droidcam, NULL);
+  //g_clear_object(&self->camera_src);
 
   if (gtk_widget_get_realized (GTK_WIDGET (self->sink_widget))) {
     gst_element_set_state (self->camerabin, GST_STATE_PLAYING);
