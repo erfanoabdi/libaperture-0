@@ -99,6 +99,9 @@ struct _ApertureViewfinder
   GstElement *branch_zbar;
 
   GstElement *gtksink;
+  GstElement *vf_csp;
+  GstElement *vf_vc;
+  GstElement *filesink;
   GtkWidget *sink_widget;
 
   GstElement *camerabin;
@@ -414,6 +417,7 @@ aperture_viewfinder_finalize (GObject *object)
 {
   ApertureViewfinder *self = APERTURE_VIEWFINDER (object);
 
+  g_clear_object (&self->pipeline);
   g_clear_object (&self->camerabin);
   g_clear_object (&self->tee);
 
@@ -474,7 +478,7 @@ aperture_viewfinder_realize (GtkWidget *widget)
 
   GTK_WIDGET_CLASS (aperture_viewfinder_parent_class)->realize (widget);
 
-  gst_element_set_state (self->camerabin, GST_STATE_PLAYING);
+  gst_element_set_state (self->pipeline, GST_STATE_PLAYING);
 }
 
 
@@ -486,7 +490,7 @@ aperture_viewfinder_unrealize (GtkWidget *widget)
 
   GTK_WIDGET_CLASS (aperture_viewfinder_parent_class)->unrealize (widget);
 
-  gst_element_set_state (self->camerabin, GST_STATE_NULL);
+  gst_element_set_state (self->pipeline, GST_STATE_NULL);
 }
 
 
@@ -602,24 +606,28 @@ aperture_viewfinder_init (ApertureViewfinder *self)
 
   aperture_private_ensure_initialized ();
 
-  self->gtksink = create_element (self, "gtksink");
+  self->pipeline = gst_pipeline_new(NULL);
+  self->camerabin = create_element(self, "droidcamsrc");
+  self->vf_csp = create_element(self, "capsfilter");
 
+  self->gtksink = create_element (self, "gtksink");
   g_object_get (self->gtksink, "widget", &self->sink_widget, NULL);
   gtk_widget_set_hexpand (self->sink_widget, TRUE);
   gtk_widget_set_vexpand (self->sink_widget, TRUE);
   gtk_widget_show (self->sink_widget);
   gtk_container_add (GTK_CONTAINER (self), self->sink_widget);
-
-  self->camerabin = create_element (self, "camerabin");
-  gst_bus_add_watch (gst_pipeline_get_bus (GST_PIPELINE (self->camerabin)), on_bus_message_async, self);
-
   self->tee = aperture_pipeline_tee_new ();
-
   aperture_pipeline_tee_add_branch (self->tee, self->gtksink);
-  g_object_set (self->camerabin, "viewfinder-sink", self->tee, NULL);
 
-  create_photo_capture_bin (self, &self->capture);
-  aperture_pipeline_tee_add_branch (self->tee, self->capture.bin);
+  self->vf_vc = create_element(self, "videoconvert");
+
+  gst_bin_add_many(GST_BIN(self->pipeline), self->camerabin, self->vf_csp, self->tee, self->vf_vc, NULL);
+
+  gst_element_link_pads(self->camerabin, "vfsrc", self->vf_csp, "sink");
+  gst_element_link_many(self->vf_csp, self->vf_vc, self->tee, NULL);
+
+  //create_photo_capture_bin(self, &self->capture);
+  //aperture_pipeline_tee_add_branch (self->tee, self->capture.bin);
 
   self->camera = NULL;
 
@@ -674,16 +682,12 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, ApertureCamera *camera
 
   /* Must change camerabin to NULL and back to PLAYING for the change to take
    * effect */
-  gst_element_set_state (self->camerabin, GST_STATE_NULL);
+  gst_element_set_state (self->pipeline, GST_STATE_NULL);
 
-  droidcam = create_element(self, "droidcamsrc");
-
-  //g_object_set(droidcam, "camera-device", 0, NULL);
-  g_object_set(self->camerabin, "camera-source", droidcam, NULL);
-  //g_clear_object(&self->camera_src);
+  g_object_set(self->camerabin, "camera-device", 0, NULL);
 
   if (gtk_widget_get_realized (GTK_WIDGET (self->sink_widget))) {
-    gst_element_set_state (self->camerabin, GST_STATE_PLAYING);
+    gst_element_set_state (self->pipeline, GST_STATE_PLAYING);
   }
 
   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_CAMERA]);
@@ -870,6 +874,7 @@ void
 aperture_viewfinder_start_recording_to_file (ApertureViewfinder *self, const char *file, GError **error)
 {
   GError *err = NULL;
+  GstCaps *caps;
 
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
   g_return_if_fail (file != NULL);
@@ -883,9 +888,14 @@ aperture_viewfinder_start_recording_to_file (ApertureViewfinder *self, const cha
 
   self->recording_video = TRUE;
 
+  g_object_set(self->filesink, "location", file, NULL);
+
+  caps = gst_caps_from_string("video/mpeg, mpegversion=4, framerate=30/1");
+  gst_element_link_pads_filtered(self->camerabin, "vidsrc", self->filesink, "sink", caps);
+  gst_caps_unref(caps);
+
   g_object_set (self->camerabin,
                 "mode", 2,
-                "location", file,
                 NULL);
 
   g_signal_emit_by_name (self->camerabin, "start-capture");
