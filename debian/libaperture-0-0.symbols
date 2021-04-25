@@ -4,7 +4,6 @@ libaperture-0.so.0 libaperture-0-0 #MINVER#
  aperture_barcode_type_from_string@Base 0.0.0+git20200619
  aperture_camera_do_flash_async@Base 0.1.0+git20200908
  aperture_camera_do_flash_finish@Base 0.1.0+git20200908
- aperture_camera_get_gst_device@Base 0.1.0+git20200908
  aperture_camera_get_source_element@Base 0.1.0+git20200908
  aperture_camera_get_type@Base 0.1.0+git20200908
  aperture_camera_new@Base 0.1.0+git20200908

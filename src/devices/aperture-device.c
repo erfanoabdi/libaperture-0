@@ -48,9 +48,9 @@ aperture_device_list_cameras_impl (ApertureDevice *self)
 
 
 static ApertureCamera *
-aperture_device_get_camera_impl (ApertureDevice *self, GstDevice *device)
+aperture_device_get_camera_impl (ApertureDevice *self, int idx)
 {
-  return aperture_camera_new (device);
+  return aperture_camera_new (idx);
 }
 
 
@@ -117,11 +117,10 @@ aperture_device_get_instance (void)
  * device should be skipped.
  */
 ApertureCamera *
-aperture_device_get_camera (ApertureDevice *self, GstDevice *gst_device)
+aperture_device_get_camera (ApertureDevice *self, int idx)
 {
   g_return_val_if_fail (APERTURE_IS_DEVICE (self), NULL);
-  g_return_val_if_fail (GST_IS_DEVICE (gst_device), NULL);
-  return APERTURE_DEVICE_GET_CLASS (self)->get_camera (self, gst_device);
+  return APERTURE_DEVICE_GET_CLASS (self)->get_camera (self, idx);
 }
 
 

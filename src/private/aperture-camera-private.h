@@ -43,16 +43,13 @@ struct _ApertureCameraClass
   void (* set_torch)    (ApertureCamera *device,
                          gboolean flash);
 
-  GstElement * (* get_source_element) (ApertureCamera *self,
-                                       GstElement *previous);
+  int (* get_source_element) (ApertureCamera *self);
 };
 
 
-ApertureCamera *aperture_camera_new (GstDevice *gst_device);
+ApertureCamera *aperture_camera_new (int idx);
 
-GstDevice  *aperture_camera_get_gst_device     (ApertureCamera *camera);
-GstElement *aperture_camera_get_source_element (ApertureCamera *camera,
-                                                GstElement *previous_element);
+int aperture_camera_get_source_element (ApertureCamera *camera);
 
 
 G_END_DECLS

@@ -40,7 +40,6 @@ struct _ApertureDeviceManager
 {
   GObject parent_instance;
 
-  GstDeviceMonitor *monitor;
   GListStore *device_list;
 };
 
@@ -59,27 +58,6 @@ enum {
   N_SIGNALS,
 };
 static guint signals[N_SIGNALS];
-
-
-/* Finds a matching ApertureCamera in our list, given a GstDevice */
-static gboolean
-find_device_in_list_model (GListModel *model, GstDevice *gst_device, uint *position)
-{
-  g_autoptr(ApertureCamera) camera = NULL;
-  int i;
-  int n = g_list_model_get_n_items (model);
-
-  for (i = 0; i < n; i ++) {
-    g_clear_object (&camera);
-    camera = g_list_model_get_item (model, i);
-    if (aperture_camera_get_gst_device (camera) == gst_device) {
-      *position = i;
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
 
 
 static uint
@@ -105,10 +83,10 @@ find_camera_in_list_model (GListModel *model, ApertureCamera *camera) {
 /* Gets an #ApertureCamera instance from the #ApertureDevice implementation,
  * adds it to the device manager's list, and returns it. */
 static ApertureCamera *
-add_camera (ApertureDeviceManager *self, GstDevice *gst_device)
+add_camera (ApertureDeviceManager *self, int idx)
 {
   ApertureDevice *device = aperture_device_get_instance ();
-  g_autoptr(ApertureCamera) camera = aperture_device_get_camera (device, gst_device);
+  g_autoptr(ApertureCamera) camera = aperture_device_get_camera (device, idx);
 
   /* aperture_device_get_camera might return NULL, which means we should
    * ignore this device */
@@ -121,48 +99,6 @@ add_camera (ApertureDeviceManager *self, GstDevice *gst_device)
 }
 
 
-static gboolean
-on_bus_message (GstBus *bus, GstMessage *message, gpointer user_data)
-{
-  ApertureDeviceManager *self = APERTURE_DEVICE_MANAGER (user_data);
-  g_autoptr(GstDevice) device = NULL;
-  ApertureCamera *camera;
-  guint device_index = -1;
-
-  switch (message->type) {
-  case GST_MESSAGE_DEVICE_ADDED:
-    gst_message_parse_device_added (message, &device);
-    g_debug ("New camera detected: %s", gst_device_get_display_name (device));
-
-    camera = add_camera (self, device);
-    if (camera) {
-      g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
-      g_signal_emit (self, signals[SIGNAL_CAMERA_ADDED], 0, camera);
-    }
-
-    break;
-  case GST_MESSAGE_DEVICE_REMOVED:
-    gst_message_parse_device_removed (message, &device);
-    g_debug ("Camera removed: %s", gst_device_get_display_name (device));
-
-    if (find_device_in_list_model (G_LIST_MODEL (self->device_list), device, &device_index)) {
-      camera = g_list_model_get_item (G_LIST_MODEL (self->device_list), device_index);
-      g_list_store_remove (self->device_list, device_index);
-
-      g_object_notify_by_pspec (G_OBJECT (self), props[PROP_NUM_CAMERAS]);
-      g_signal_emit (self, signals[SIGNAL_CAMERA_REMOVED], 0, camera);
-      g_object_unref (camera);
-    }
-
-    break;
-  default:
-    break;
-  }
-
-  return G_SOURCE_CONTINUE;
-}
-
-
 /* VFUNCS */
 
 
@@ -170,11 +106,6 @@ static void
 aperture_device_manager_finalize (GObject *object)
 {
   ApertureDeviceManager *self = APERTURE_DEVICE_MANAGER (object);
-  g_autoptr(GstBus) bus = gst_device_monitor_get_bus (self->monitor);
-
-  gst_bus_remove_watch (bus);
-  gst_device_monitor_stop (self->monitor);
-  g_clear_object (&self->monitor);
 
   g_clear_object (&self->device_list);
 
@@ -261,31 +192,14 @@ aperture_device_manager_class_init (ApertureDeviceManagerClass *klass)
 static void
 aperture_device_manager_init (ApertureDeviceManager *self)
 {
-  ApertureDevice *device = aperture_device_get_instance ();
-  g_autolist(ApertureCamera) cameras = aperture_device_list_cameras (device);
-  g_autoptr(GstBus) bus = NULL;
-  g_autolist(GstDevice) devices = NULL;
-  GList *i;
-
-  self->monitor = gst_device_monitor_new ();
-  gst_device_monitor_add_filter (self->monitor, "Source/Video", NULL);
-  gst_device_monitor_start (self->monitor);
+  int i;
 
   self->device_list = g_list_store_new (APERTURE_TYPE_CAMERA);
 
-  /* Add built-in cameras from the device */
-  for (i = cameras; i != NULL; i = i->next) {
-    g_list_store_append (self->device_list, i->data);
+  /* Add devices */
+  for (i = 0; i < 2; i++) {
+    add_camera (self, i);
   }
-
-  /* Add devices from GstDeviceMonitor */
-  devices = gst_device_monitor_get_devices (self->monitor);
-  for (i = devices; i != NULL; i = i->next) {
-    add_camera (self, i->data);
-  }
-
-  bus = gst_device_monitor_get_bus (self->monitor);
-  gst_bus_add_watch (bus, on_bus_message, self);
 }
 
 

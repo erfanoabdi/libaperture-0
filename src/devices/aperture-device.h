@@ -41,14 +41,14 @@ struct _ApertureDeviceClass
 
   GList          * (* list_cameras) (ApertureDevice *device);
   ApertureCamera * (* get_camera)   (ApertureDevice *device,
-                                     GstDevice *gst_device);
+                                     int idx);
 };
 
 
 ApertureDevice *aperture_device_get_instance (void);
 
 GList          *aperture_device_list_cameras (ApertureDevice *device);
-ApertureCamera *aperture_device_get_camera   (ApertureDevice *device, GstDevice *gst_device);
+ApertureCamera *aperture_device_get_camera   (ApertureDevice *device, int idx);
 
 
 G_END_DECLS

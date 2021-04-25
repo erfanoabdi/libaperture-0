@@ -37,7 +37,7 @@
 
 
 typedef struct {
-  GstDevice *gst_device;
+  int idx;
 } ApertureCameraPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE (ApertureCamera, aperture_camera, G_TYPE_OBJECT)
@@ -49,11 +49,6 @@ G_DEFINE_TYPE_WITH_PRIVATE (ApertureCamera, aperture_camera, G_TYPE_OBJECT)
 static void
 aperture_camera_finalize (GObject *object)
 {
-  ApertureCamera *self = APERTURE_CAMERA (object);
-  ApertureCameraPrivate *priv = aperture_camera_get_instance_private (self);
-
-  g_clear_object (&priv->gst_device);
-
   G_OBJECT_CLASS (aperture_camera_parent_class)->finalize (object);
 }
 
@@ -87,21 +82,16 @@ aperture_camera_do_flash_finish_impl (ApertureCamera *self, GAsyncResult *result
 }
 
 
-static GstElement *
-aperture_camera_get_source_element_impl (ApertureCamera *self, GstElement *previous)
+static int
+aperture_camera_get_source_element_impl (ApertureCamera *self)
 {
   ApertureCameraPrivate *priv;
 
-  g_return_val_if_fail (APERTURE_IS_CAMERA (self), NULL);
-  g_return_val_if_fail (previous == NULL || GST_IS_ELEMENT (previous), NULL);
+  g_return_val_if_fail (APERTURE_IS_CAMERA (self), 0);
 
   priv = aperture_camera_get_instance_private (self);
 
-  if (gst_device_reconfigure_element (priv->gst_device, previous)) {
-    return NULL;
-  }
-
-  return gst_device_create_element (priv->gst_device, NULL);
+  return priv->idx;
 }
 
 
@@ -209,23 +199,22 @@ aperture_camera_set_torch (ApertureCamera *self, gboolean state)
 
 /**
  * PRIVATE:aperture_camera_new:
- * @gst_device: (transfer full): The GStreamer device for the camera
+ * @idx: (transfer full): The GStreamer device for the camera
  *
  * Create a new #ApertureCamera.
  *
  * Returns: (transfer full): a newly created #ApertureCamera
  */
 ApertureCamera *
-aperture_camera_new (GstDevice *gst_device)
+aperture_camera_new (int idx)
 {
   ApertureCamera *camera;
   ApertureCameraPrivate *priv;
 
-  g_return_val_if_fail (GST_IS_DEVICE (gst_device), NULL);;
-
   camera = g_object_new (APERTURE_TYPE_CAMERA, NULL);
   priv = aperture_camera_get_instance_private (camera);
-  priv->gst_device = g_object_ref (gst_device);
+  priv->idx = idx;
+
   return camera;
 }
 
@@ -233,38 +222,16 @@ aperture_camera_new (GstDevice *gst_device)
 /**
  * PRIVATE:aperture_camera_get_source_element:
  * @self: an #ApertureCamera
- * @previous: (nullable): a #GstElement to reconfigure, or %NULL
  *
  * Gets a GStreamer source element that provides this camera's video feed.
  *
  * Returns: (transfer full): a newly created source #GstElement, or %NULL
  * if @previous was reconfigured instead
  */
-GstElement *
-aperture_camera_get_source_element (ApertureCamera *self, GstElement *previous)
+int
+aperture_camera_get_source_element (ApertureCamera *self)
 {
-  g_return_val_if_fail (APERTURE_IS_CAMERA (self), NULL);
-  g_return_val_if_fail (previous == NULL || GST_IS_ELEMENT (previous), NULL);
+  g_return_val_if_fail (APERTURE_IS_CAMERA (self), 0);
 
-  return APERTURE_CAMERA_GET_CLASS (self)->get_source_element (self, previous);
-}
-
-
-/**
- * PRIVATE:aperture_camera_get_gst_device:
- * @self: an #ApertureCamera
- *
- * Gets the #GstDevice corresponding to an #ApertureCamera.
- *
- * Returns: (transfer none): the #GstDevice representing the camera
- */
-GstDevice *
-aperture_camera_get_gst_device (ApertureCamera *self)
-{
-  ApertureCameraPrivate *priv;
-
-  g_return_val_if_fail (APERTURE_IS_CAMERA (self), NULL);
-
-  priv = aperture_camera_get_instance_private (self);
-  return priv->gst_device;
+  return APERTURE_CAMERA_GET_CLASS (self)->get_source_element (self);
 }

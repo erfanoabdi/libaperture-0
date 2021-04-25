@@ -417,6 +417,7 @@ aperture_viewfinder_finalize (GObject *object)
 {
   ApertureViewfinder *self = APERTURE_VIEWFINDER (object);
 
+  g_clear_object (&self->devices);
   g_clear_object (&self->pipeline);
   g_clear_object (&self->camerabin);
   g_clear_object (&self->tee);
@@ -630,9 +631,15 @@ aperture_viewfinder_init (ApertureViewfinder *self)
   //aperture_pipeline_tee_add_branch (self->tee, self->capture.bin);
 
   self->camera = NULL;
+  self->devices = aperture_device_manager_get_instance ();
 
-  set_state (self, APERTURE_VIEWFINDER_STATE_READY);
-  aperture_viewfinder_set_camera (self, NULL, NULL);
+  if (aperture_device_manager_get_num_cameras (self->devices) > 0) {
+    set_state (self, APERTURE_VIEWFINDER_STATE_READY);
+    camera = aperture_device_manager_get_camera (self->devices, 0);
+    aperture_viewfinder_set_camera (self, camera, NULL);
+  } else {
+    set_state (self, APERTURE_VIEWFINDER_STATE_NO_CAMERAS);
+  }
 }
 
 
@@ -670,8 +677,10 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, ApertureCamera *camera
 {
   g_autoptr(GstElement) droidcam = NULL;
   GError *err = NULL;
+  int idx = 0;
 
   g_return_if_fail (APERTURE_IS_VIEWFINDER (self));
+  g_return_if_fail (camera == NULL || APERTURE_IS_CAMERA (camera));
 
   get_current_operation (self, &err);
   set_error_if_not_ready (self, &err);
@@ -680,11 +689,21 @@ aperture_viewfinder_set_camera (ApertureViewfinder *self, ApertureCamera *camera
     return;
   }
 
+  if (self->camera == camera) {
+    return;
+  }
+
+  g_set_object (&self->camera, camera);
+
   /* Must change camerabin to NULL and back to PLAYING for the change to take
    * effect */
   gst_element_set_state (self->pipeline, GST_STATE_NULL);
 
-  g_object_set(self->camerabin, "camera-device", 0, NULL);
+  if (camera != NULL) {
+    idx = aperture_camera_get_source_element(camera);
+
+    g_object_set(self->camerabin, "camera-device", idx, NULL);
+  }
 
   if (gtk_widget_get_realized (GTK_WIDGET (self->sink_widget))) {
     gst_element_set_state (self->pipeline, GST_STATE_PLAYING);
