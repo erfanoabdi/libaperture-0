@@ -79,13 +79,6 @@
 #include "aperture-utils.h"
 #include "aperture-viewfinder.h"
 
-
-typedef struct {
-  GstElement *bin;
-  GstElement *valve;
-  GstElement *gdkpixbufsink;
-} ApertureViewfinderPhotoCapture;
-
 struct _ApertureViewfinder
 {
   GtkBin parent_instance;
@@ -104,6 +97,11 @@ struct _ApertureViewfinder
   GstElement *filesink;
   GtkWidget *sink_widget;
 
+  GstElement *multifilesink;
+  GstElement *fs_csp;
+  GstElement *fs_q;
+  const gchar *tmp_pic_path;
+
   GstElement *camerabin;
   AperturePipelineTee *tee;
   GstElement *pipeline;
@@ -112,8 +110,6 @@ struct _ApertureViewfinder
 
   gboolean recording_video;
   GTask *task_take_video;
-
-  ApertureViewfinderPhotoCapture capture;
 };
 
 G_DEFINE_TYPE (ApertureViewfinder, aperture_viewfinder, GTK_TYPE_BIN)
@@ -239,37 +235,6 @@ create_zbar_bin ()
 }
 
 
-static void
-create_photo_capture_bin (ApertureViewfinder *self, ApertureViewfinderPhotoCapture *result)
-{
-  GstElement *bin = gst_bin_new (NULL);
-  g_autoptr(GstPad) pad = NULL;
-  GstPad *ghost_pad;
-
-  GstElement *valve;
-  GstElement *videoconvert;
-  GstElement *gdkpixbufsink;
-
-  valve = create_element (self, "valve");
-  videoconvert = create_element (self, "videoconvert");
-  gdkpixbufsink = create_element (self, "gdkpixbufsink");
-
-  g_object_set (valve, "drop", FALSE, NULL);
-
-  gst_bin_add_many (GST_BIN (bin), valve, videoconvert, gdkpixbufsink, NULL);
-  gst_element_link_many (valve, videoconvert, gdkpixbufsink, NULL);
-
-  pad = gst_element_get_static_pad (valve, "sink");
-  ghost_pad = gst_ghost_pad_new ("sink", pad);
-  gst_pad_set_active (ghost_pad, TRUE);
-  gst_element_add_pad (bin, ghost_pad);
-
-  result->bin = bin;
-  result->valve = valve;
-  result->gdkpixbufsink = gdkpixbufsink;
-}
-
-
 /* If an operation (take photo, take video, switch camera) is in progress,
  * set @err. */
 static void
@@ -331,25 +296,33 @@ on_pipeline_error (ApertureViewfinder *self, GstMessage *message)
 
 
 static void
-on_gdk_pixbuf_preroll (ApertureViewfinder *self)
+on_multi_filesink (ApertureViewfinder *self, GstMessage *message)
 {
-  g_object_set (self->capture.valve, "drop", TRUE, NULL);
-}
-
-
-static void
-on_gdk_pixbuf (ApertureViewfinder *self, GstMessage *message)
-{
-  const GstStructure *structure = gst_message_get_structure (message);
+  FILE *tmpfile;
+  guint8 *buffer;
+  gsize length;
+  GdkPixbufLoader *loader;
   GdkPixbuf *pixbuf;
 
   if (self->task_take_picture) {
-    gst_structure_get (structure, "pixbuf", GDK_TYPE_PIXBUF, &pixbuf, NULL);
+    tmpfile = fopen(self->tmp_pic_path, "r");
+    fseek(tmpfile, 0, SEEK_END);
+    length = ftell(tmpfile);
+    fseek(tmpfile, 0, SEEK_SET);
+    buffer = (guint8 *)malloc(length + 1);
+    if (fread(buffer, length, 1, tmpfile)) {
+      fclose(tmpfile);
 
-    g_task_return_pointer (self->task_take_picture, pixbuf, g_object_unref);
-    end_take_photo_operation (self);
+      loader = gdk_pixbuf_loader_new();
+      gdk_pixbuf_loader_write(loader, buffer, length, NULL);
+      pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
 
-    g_object_set (self->capture.valve, "drop", TRUE, NULL);
+      g_task_return_pointer (self->task_take_picture, pixbuf, g_object_unref);
+      end_take_photo_operation (self);
+
+      free(buffer);
+      remove(self->tmp_pic_path);
+    }
   }
 }
 
@@ -391,10 +364,8 @@ on_bus_message_async (GstBus *bus, GstMessage *message, gpointer user_data)
     break;
 
   case GST_MESSAGE_ELEMENT:
-    if (gst_message_has_name (message, "pixbuf")) {
-      on_gdk_pixbuf (self, message);
-    } else if (gst_message_has_name (message, "preroll-pixbuf")) {
-      on_gdk_pixbuf_preroll (self);
+    if (gst_message_has_name (message, "GstMultiFileSink")) {
+      on_multi_filesink (self, message);
     } else if (gst_message_has_name (message, "video-done")) {
       on_video_done (self);
     } else if (gst_message_has_name (message, "barcode")) {
@@ -604,6 +575,7 @@ static void
 aperture_viewfinder_init (ApertureViewfinder *self)
 {
   g_autoptr(ApertureCamera) camera = NULL;
+  GstBus *bus;
 
   aperture_private_ensure_initialized ();
 
@@ -622,13 +594,25 @@ aperture_viewfinder_init (ApertureViewfinder *self)
 
   self->vf_vc = create_element(self, "videoconvert");
 
-  gst_bin_add_many(GST_BIN(self->pipeline), self->camerabin, self->vf_csp, self->tee, self->vf_vc, NULL);
+  self->multifilesink = create_element(self, "multifilesink");
+  self->tmp_pic_path = "/tmp/libaperture-tmp.jpg";
+  g_object_set(self->multifilesink, "async", FALSE, "post-messages",
+               TRUE, "location", self->tmp_pic_path, NULL);
+  self->fs_csp = create_element(self, "capsfilter");
+  self->fs_q = create_element(self, "queue");
+  g_object_set (self->fs_q, "leaky", 1, "max-size-buffers", 1, NULL);
+
+  gst_bin_add_many(GST_BIN(self->pipeline), self->camerabin, self->vf_csp, self->tee, self->vf_vc,
+                   self->multifilesink, self->fs_csp, self->fs_q, NULL);
 
   gst_element_link_pads(self->camerabin, "vfsrc", self->vf_csp, "sink");
+  gst_element_link_pads(self->camerabin, "imgsrc", self->fs_csp, "sink");
   gst_element_link_many(self->vf_csp, self->vf_vc, self->tee, NULL);
+  gst_element_link_many(self->fs_csp, self->fs_q, self->multifilesink, NULL);
 
-  //create_photo_capture_bin(self, &self->capture);
-  //aperture_pipeline_tee_add_branch (self->tee, self->capture.bin);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (self->pipeline));
+  gst_bus_add_watch (bus, on_bus_message_async, self);
+  gst_object_unref (bus);
 
   self->camera = NULL;
   self->devices = aperture_device_manager_get_instance ();
@@ -848,7 +832,8 @@ aperture_viewfinder_take_picture_async (ApertureViewfinder *self,
   self->task_take_picture = task;
 
   /* Start the picture taking process */
-  g_object_set (self->capture.valve, "drop", FALSE, NULL);
+  g_object_set (self->camerabin, "mode", 1, NULL);
+  g_signal_emit_by_name (self->camerabin, "start-capture", NULL);
 }
 
 
