@@ -94,13 +94,14 @@ struct _ApertureViewfinder
   GstElement *gtksink;
   GstElement *vf_csp;
   GstElement *vf_vc;
-  GstElement *filesink;
   GtkWidget *sink_widget;
 
   GstElement *multifilesink;
   GstElement *fs_csp;
   GstElement *fs_q;
   const gchar *tmp_pic_path;
+
+  GstElement *filesink;
 
   GstElement *camerabin;
   AperturePipelineTee *tee;
@@ -602,11 +603,14 @@ aperture_viewfinder_init (ApertureViewfinder *self)
   self->fs_q = create_element(self, "queue");
   g_object_set (self->fs_q, "leaky", 1, "max-size-buffers", 1, NULL);
 
-  gst_bin_add_many(GST_BIN(self->pipeline), self->camerabin, self->vf_csp, self->tee, self->vf_vc,
-                   self->multifilesink, self->fs_csp, self->fs_q, NULL);
+  gst_bin_add_many(GST_BIN(self->pipeline), self->camerabin,
+                   self->vf_csp, self->tee, self->vf_vc,
+                   self->multifilesink, self->fs_csp, self->fs_q,
+                   NULL);
 
   gst_element_link_pads(self->camerabin, "vfsrc", self->vf_csp, "sink");
   gst_element_link_pads(self->camerabin, "imgsrc", self->fs_csp, "sink");
+
   gst_element_link_many(self->vf_csp, self->vf_vc, self->tee, NULL);
   gst_element_link_many(self->fs_csp, self->fs_q, self->multifilesink, NULL);
 
@@ -892,15 +896,17 @@ aperture_viewfinder_start_recording_to_file (ApertureViewfinder *self, const cha
 
   self->recording_video = TRUE;
 
+  self->filesink = create_element(self, "filesink");
   g_object_set(self->filesink, "location", file, NULL);
 
-  caps = gst_caps_from_string("video/mpeg, mpegversion=4, framerate=30/1");
+  gst_bin_add (GST_BIN (self->pipeline), self->filesink);
+
+  caps = gst_caps_from_string("video/x-h264, framerate=30/1");
   gst_element_link_pads_filtered(self->camerabin, "vidsrc", self->filesink, "sink", caps);
   gst_caps_unref(caps);
 
-  g_object_set (self->camerabin,
-                "mode", 2,
-                NULL);
+  g_object_set (self->camerabin, "mode", 2, NULL);
+  gst_element_set_state (self->filesink, GST_STATE_PLAYING);
 
   g_signal_emit_by_name (self->camerabin, "start-capture");
 }
@@ -950,6 +956,7 @@ aperture_viewfinder_stop_recording_async (ApertureViewfinder *self,
   self->task_take_video = task;
 
   g_signal_emit_by_name (self->camerabin, "stop-capture");
+  gst_element_set_state (self->filesink, GST_STATE_NULL);
 }
 
 
